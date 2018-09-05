@@ -1,6 +1,7 @@
 #include "scene.h"
 
-Scene::Scene(unsigned int width, unsigned int height, std::string name){
+Scene::Scene(unsigned int width, unsigned int height, std::string name)
+:width(width), height(height){
 	//init glfw
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);

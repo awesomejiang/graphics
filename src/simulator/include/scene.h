@@ -16,6 +16,7 @@ public:
 
 	void processInput() const;
 
+	unsigned int width, height;
 	GLFWwindow *window;
 };
 

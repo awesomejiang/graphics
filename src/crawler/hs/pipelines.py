@@ -1,28 +1,30 @@
 # -*- coding: utf-8 -*-
 
-
 import scrapy
 import json
 import codecs
-from scrapy.pipelines.images import ImagesPipeline
+from scrapy.pipelines.files import FilesPipeline
 from scrapy.exceptions import DropItem
 
 #images output
-class HsImagesPipeline(ImagesPipeline):
+class HsFilesPipeline(FilesPipeline):
+	def file_path(self, request, response=None, info=None):
+		return request.url.split('/')[-1]
 
 	def get_media_requests(self, item, info):
-		for image_url in item['image_urls']:
-			yield scrapy.Request(image_url)
+		for url in item['cardImageUrls']:
+			yield scrapy.Request(url)
 
 	def item_completed(self, results, item, info):
 		image_paths = [x['path'] for ok, x in results if ok]
 		# do not want to dropitem in this case even if no images
-		"""if not image_paths:
-			raise DropItem("Item contains no images")"""
-		item['image_paths'] = image_paths
+		if not image_paths:
+			raise DropItem("Item contains no images")
+		item['cardImagePaths'] = image_paths
 		return item
+
 #data output
-class JsonWithEncodingCnblogsPipeline(object):
+class JsonWithEncodingPipeline(object):
 
 	def __init__(self):
         	self.file = codecs.open('cardinfo.json', 'w', encoding='utf-8')

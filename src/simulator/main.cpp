@@ -4,9 +4,11 @@
 #include <cmath>
 #include <iostream>
 
-#include "game.cuh"
+#include "spirit.cuh"
 #include "card.h"
 #include "shader.h"
+#include "scene.h"
+#include "pack.h"
 
 std::vector<Particle> generateRandomParticles(int n){
 	std::random_device rd;
@@ -19,7 +21,7 @@ std::vector<Particle> generateRandomParticles(int n){
 		float x = disScreen(gen);
 		auto k = UpdateKernel::gravity;
 		ret.emplace_back(
-			k, vec2(x, -1.0f), vec2(0.0f, 0.0f), vec4(0.1f, 0.5f, 0.1f, 1.0f)
+			k, vec2(x, -1.0f), vec2(0.0f, 0.0f), vec4(0.1f, 0.2f, 0.3f, 1.0f)
 		);
 	}
 
@@ -29,23 +31,31 @@ std::vector<Particle> generateRandomParticles(int n){
 
 
 int main(int argc, char** argv){
-	Card card("resources/cardinfo.json");
-	std::cout << card.getRandomCard("Classic") << std::endl;
-	/*
 	long long int n = atoll(argv[1]);
-	std::vector<Particle> particles = generateRandomParticles(n);
-	Game game(800, 600, particles);
-	Shader shader("shaders/particle.vs", "shaders/particle.fs");
 
-	game.init(n);
+	Scene scene(800, 600, "pack simulator");
+	//Spirit spirit(generateRandomParticles(n));
 
-	//int ctr = 0;
-	//while(ctr++ < 10){
-	while(!game.shouldClose()){
-		shader.use();
-		game.render();
+	Card card("resources/cardinfo.json");
+
+	auto image = card.getRandomCard("Classic");
+	std::cout << image << std::endl;
+	Pack pack(image);
+
+	while(!glfwWindowShouldClose(scene.window)){
+		scene.processInput();
+
+		//clear output
+		glViewport(0, 0, scene.width, scene.height);
+    	glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+    	glClear(GL_COLOR_BUFFER_BIT);
+
+    	//draw
+		//spirit.render(scene);
+    	pack.render();
+    	
+    	//check status
+    	glfwSwapBuffers(scene.window);
+    	glfwPollEvents();
 	}
-	*/
-
-
 }

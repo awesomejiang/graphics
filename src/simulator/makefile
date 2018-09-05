@@ -3,8 +3,8 @@ FLAGS = -std=c++11 -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -l
 
 PROGS = main
 
-CUS = utility game particle vec
-CPPS = shader scene card
+CUS = utility spirit particle vec
+CPPS = pack mesh texture shader scene card
 
 CU_OBJS = $(patsubst %, obj/%.o, $(CUS))
 

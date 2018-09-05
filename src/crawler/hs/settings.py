@@ -7,16 +7,15 @@ NEWSPIDER_MODULE = 'hs.spiders'
 
 ROBOTSTXT_OBEY = True
 
-# do not use 'hs.pipelines.HsPipelines' cuz we only refactor two functions.
-ITEM_PIPELINES = {'scrapy.pipelines.images.ImagesPipeline':1, 'hs.pipelines.JsonWithEncodingCnblogsPipeline':300}
+ITEM_PIPELINES = {'hs.pipelines.HsFilesPipeline':1, 'hs.pipelines.JsonWithEncodingPipeline':300}
 
-IMAGES_STORE = 'images/'
+FILES_STORE = 'images/'
 
 #clean former data before run
 import os, shutil
 
 try:
-	shutil.rmtree(IMAGES_STORE)
+	shutil.rmtree(FILES_STORE)
 except:
 	pass
 

@@ -9,13 +9,12 @@ from scrapy import Field, Item
 
 
 class CardItem(Item):
-	Name = Field()
-	Type = Field()
-	Class = Field()
-	Rarity = Field()
-	Set = Field()
-	Tip = Field()
-	Skill = Field()
-	image_urls = Field()
-	images = Field()
-	
+	cardName = Field()
+	cardType = Field()
+	cardClass = Field()
+	cardRarity = Field()
+	cardSet = Field()
+	cardTip = Field()
+	cardSkill = Field()
+	cardImageUrls = Field()
+	cardImagePaths = Field()

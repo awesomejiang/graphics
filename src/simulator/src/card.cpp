@@ -16,10 +16,9 @@ Card::Card(std::string const &path)
 			continue;
 
 		//only save collectiable cards in proper cardsets
-		auto set = doc.FindMember("Set");
-		auto tip = doc.FindMember("Tip");
-		auto images = doc.FindMember("images");
-		CardSet setEnum;
+		auto set = doc.FindMember("cardSet");
+		auto tip = doc.FindMember("cardTip");
+		auto images = doc.FindMember("cardImagePaths");
 		bool collectiable;
 		if(set != doc.MemberEnd() && set->value.IsArray()
 		   && tip != doc.MemberEnd() && tip->value.IsArray()
@@ -32,15 +31,13 @@ Card::Card(std::string const &path)
 				//get rarity
 				auto rarityIter = doc.FindMember("Rarity");
 				auto rarity = std::string(rarityIter->value[0].GetString());
-				commons[setName][rarity].push_back(images->value[0]["path"].GetString());
-				goldens[setName][rarity].push_back(images->value[1]["path"].GetString());
+				commons[setName][rarity].push_back(images->value[0].GetString());
+				goldens[setName][rarity].push_back(images->value[1].GetString());
 			}
 		}
 		else
 			continue;
 	}
-
-	for()
 }
 
 std::string Card::getRandomCard(std::string const &set){
@@ -74,9 +71,9 @@ std::string Card::getRandomCard(std::string const &set){
 
 	int rand = dis(gen)/100.0f * commons.size();
 	if(golden)
-		return goldens[set][rarity][rand];
+		return "resources/images/" + goldens[set][rarity][rand];
 	else
-		return commons[set][rarity][rand];	
+		return "resources/images/" + commons[set][rarity][rand];	
 }
 
 bool Card::isInPack(std::string const &set) const{
@@ -95,31 +92,3 @@ bool Card::isInPack(std::string const &set) const{
 	else
 		return false;
 }
-
-
-/*
-CardSet Card::getSetEnum(std::string const &set) const{
-	if(set == "Classic")
-		return CardSet::classic;
-	else if(set == "Goblins vs Gnomes")
-		return CardSet::gvg;
-	else if(set == "The Grand Tournament")
-		return CardSet::tournament;
-	else if(set == "Whispers of the Old Gods")
-		return CardSet::oldGods;
-	else if(set == "Mean Streets of Gadgetzan")
-		return CardSet::gadgetzan;
-	else if(set == "Journey to Un'Goro")
-		return CardSet::ungoro;
-	else if(set == "Knights of the Frozen Throne")
-		return CardSet::frozenThrone;
-	else if(set == "Kobolds and Catacombs")
-		return CardSet::kobolds;
-	else if(set == "The Witchwood")
-		return CardSet::witchwood;
-	else if(set == "The Boomsday Project")
-		return CardSet::boomsday;
-	else
-		return CardSet::others;
-}
-*/

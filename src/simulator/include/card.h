@@ -11,19 +11,6 @@
 
 #define MAX_SETS 10
 
-enum class CardSet{
-	classic,
-	gvg,
-	tournament,
-	oldGods,
-	gadgetzan,
-	ungoro,
-	frozenThrone,
-	kobolds,
-	witchwood,
-	boomsday,
-	others
-};
 
 class Card{
 public:
