@@ -1,5 +1,5 @@
-#ifndef SPIRIT_H
-#define SPIRIT_H
+#ifndef SPIRIT_CUH
+#define SPIRIT_CUH
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -10,10 +10,10 @@
 #include <vector>
 #include <stdexcept>
 
+#include "macros.cuh"
 #include "vec.cuh"
 #include "particle.cuh"
 #include "utility.cuh"
-#include "scene.h"
 #include "shader.h"
 
 class Spirit{
@@ -21,7 +21,7 @@ public:
 	Spirit(std::vector<Particle> particles);
 	~Spirit();
 	void initCuda();
-	void render(Scene const &scene);
+	void render(Mouse const &mouse);
 
 private:
 	void createVBO();
@@ -38,9 +38,9 @@ private:
 };
 
 
-__global__ void initKernel(Particle* vbo, int n, Particle *p);
-__global__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state);
-__device__ int getIdx();
+__GLOBAL__ void initKernel(Particle* vbo, int n, Particle *p);
+__GLOBAL__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state);
+__DEVICE__ int getIdx();
 
 
 #endif

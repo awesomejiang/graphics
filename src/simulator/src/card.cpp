@@ -29,7 +29,7 @@ Card::Card(std::string const &path)
 			   && std::string(tip->value[0].GetString())=="Collectible"
 			   ){
 				//get rarity
-				auto rarityIter = doc.FindMember("Rarity");
+				auto rarityIter = doc.FindMember("cardRarity");
 				auto rarity = std::string(rarityIter->value[0].GetString());
 				commons[setName][rarity].push_back(images->value[0].GetString());
 				goldens[setName][rarity].push_back(images->value[1].GetString());
@@ -44,6 +44,7 @@ std::string Card::getRandomCard(std::string const &set){
 	bool golden;
 	std::string rarity;
 	float dice = dis(gen);
+	
 	if(dice < 0.111f){
 		golden = true; rarity = "Legendary";
 	}
@@ -69,7 +70,7 @@ std::string Card::getRandomCard(std::string const &set){
 		golden = false; rarity = "Common";
 	}
 
-	int rand = dis(gen)/100.0f * commons.size();
+	int rand = dis(gen)/100.0f * commons[set][rarity].size();
 	if(golden)
 		return "resources/images/" + goldens[set][rarity][rand];
 	else

@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "spirit.cuh"
+#include "utility.cuh"
 #include "card.h"
 #include "shader.h"
 #include "scene.h"
@@ -39,11 +40,12 @@ int main(int argc, char** argv){
 	Card card("resources/cardinfo.json");
 
 	auto image = card.getRandomCard("Classic");
-	std::cout << image << std::endl;
-	Pack pack(image);
+	//std::cout << image << std::endl;
+	Pack pack(image, "resources/box.png");
 
 	while(!glfwWindowShouldClose(scene.window)){
 		scene.processInput();
+		auto mouse = getMouse(scene);
 
 		//clear output
 		glViewport(0, 0, scene.width, scene.height);
@@ -51,8 +53,8 @@ int main(int argc, char** argv){
     	glClear(GL_COLOR_BUFFER_BIT);
 
     	//draw
-		//spirit.render(scene);
-    	pack.render();
+		//spirit.render(mouse);
+    	pack.render(mouse);
     	
     	//check status
     	glfwSwapBuffers(scene.window);

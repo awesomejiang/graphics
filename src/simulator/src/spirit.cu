@@ -77,27 +77,19 @@ void Spirit::initCuda(){
 }
 
 
-void Spirit::render(Scene const &scene){
-	double mouseX, mouseY;
-	glfwGetCursorPos(scene.window, &mouseX, &mouseY);
-	mouseX = mouseX/scene.width * 2 - 1.0;
-	mouseY = -mouseY/scene.height * 2 + 1.0; //mouseY is bottom down
-	vec2 mousePos = {static_cast<float>(mouseX), static_cast<float>(mouseY)};
-
-	int state = glfwGetMouseButton(scene.window, GLFW_MOUSE_BUTTON_LEFT);
-
+void Spirit::render(Mouse const &mouse){
 	//get mouse position
 	vec2* deviceMousePos = nullptr;
 	auto sz = sizeof(vec2);
 	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMousePos, sz) );
-	CUDA_SAFE_CALL( cudaMemcpy(deviceMousePos, &mousePos, sz, cudaMemcpyHostToDevice) );
+	CUDA_SAFE_CALL( cudaMemcpy(deviceMousePos, &mouse.pos, sz, cudaMemcpyHostToDevice) );
 
 	//map dptr to VBO
 	size_t retSz;
 	Particle *dptr = nullptr;
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dptr, &retSz, resource) );
 	//run cuda kernel
-	renderKernel<<<block, grid>>>(dptr, nParticle, deviceMousePos, state);
+	renderKernel<<<block, grid>>>(dptr, nParticle, deviceMousePos, mouse.pressed);
 	CUDA_ERROR_CHECKER;
 
 	//draw
@@ -116,7 +108,7 @@ void Spirit::render(Scene const &scene){
 	CUDA_SAFE_CALL( cudaFree(deviceMousePos) );
 }
 
-__global__ void initKernel(Particle* dptr, int n, Particle *p){
+__GLOBAL__ void initKernel(Particle* dptr, int n, Particle *p){
     int index = getIdx();
     if(index > n)
     	return ;
@@ -124,7 +116,7 @@ __global__ void initKernel(Particle* dptr, int n, Particle *p){
     dptr[index] = p[index];
 }
 
-__global__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state){
+__GLOBAL__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state){
     int index = getIdx();
     if(index > n)
     	return ;
@@ -133,7 +125,7 @@ __global__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state){
     dptr[index].update(*pos, pressed);
 }
 
-__device__ int getIdx(){
+__DEVICE__ int getIdx(){
 	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
 	return blockDim.x*grid + threadIdx.x;
 }

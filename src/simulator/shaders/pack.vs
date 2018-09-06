@@ -11,4 +11,5 @@ uniform mat4 model;
 void main(){
 	gl_Position = model * vec4(aPos, 1.0);
 	texCoord = aTex;
+	texCoord.x = 1.0 - texCoord.x; //do a horizontal flip cuz the origin pattern is at back.
 }

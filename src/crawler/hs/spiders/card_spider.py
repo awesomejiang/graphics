@@ -12,7 +12,7 @@ class card_spider(CrawlSpider):
 		Rule( LinkExtractor(allow = '/cards/\d*\-\w*'), callback = 'parse_item' ),
 		Rule( LinkExtractor(restrict_xpaths = u"//a[@rel='next']"), callback = 'parse_next' )
 			)
-		
+	
 	#codes for benchmark	
 	"""
 	rules = (

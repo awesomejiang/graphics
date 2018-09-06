@@ -13,14 +13,18 @@
 #include "mesh.h"
 #include "texture.h"
 #include "shader.h"
+#include "utility.cuh"
+#include "vec.cuh"
 
 class Pack{
 public:
-	Pack(std::string const &texPath);
-	void render() const;
+	Pack(std::string const &texFront, std::string const &texBack);
+	void render(Mouse const &mouse);
 private:
 	Mesh quad;
 	Shader quadShader;
+	float rotate;
+	bool startRotate;
 };
 
 #endif

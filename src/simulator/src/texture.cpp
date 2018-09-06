@@ -14,7 +14,7 @@ Texture::Texture(std::string const &path, std::string const &type, std::string c
 
     //TODO: some texture has to be flipped./some texture are not well aligned. How to determine?
     stbi_set_flip_vertically_on_load(true);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    //glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     int width, height, nrComponents;
     unsigned char *data = stbi_load(path.c_str(), &width, &height, &nrComponents, 0);

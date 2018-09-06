@@ -3,13 +3,16 @@
 import scrapy
 import json
 import codecs
+import hashlib
+import os
 from scrapy.pipelines.files import FilesPipeline
 from scrapy.exceptions import DropItem
 
 #images output
 class HsFilesPipeline(FilesPipeline):
 	def file_path(self, request, response=None, info=None):
-		return request.url.split('/')[-1]
+		url = request.url
+		return hashlib.sha1(url.encode('utf-8')).hexdigest() + os.path.splitext(url)[1]
 
 	def get_media_requests(self, item, info):
 		for url in item['cardImageUrls']:
@@ -21,6 +24,7 @@ class HsFilesPipeline(FilesPipeline):
 		if not image_paths:
 			raise DropItem("Item contains no images")
 		item['cardImagePaths'] = image_paths
+
 		return item
 
 #data output
