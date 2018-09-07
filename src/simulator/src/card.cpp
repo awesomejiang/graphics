@@ -1,95 +1,74 @@
 #include "card.h"
-#include <iostream>
-Card::Card(std::string const &path)
-:gen(std::random_device()()), dis(0.0f, 100.0f){
-	//open json file
-	std::ifstream ifs(path);
-	if(!ifs.is_open())
-		throw std::runtime_error("Error: Cannot open " + path + " for json parsing.");
 
-	//read json line by line
-	while(!ifs.eof()){
-		std::string line;
-		std::getline(ifs, line);
-		rapidjson::Document doc;
-		if(doc.Parse(line.c_str()).HasParseError() || !doc.IsObject())
-			continue;
+Card::Card(CardAttrib const &cardAttrib, vec2 const &offset)
+: quad({
+        // positions          // normals           // texture coords
+	    {{-HALFWIDTH, -HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {0.0f, 0.0f}},
+	    {{ HALFWIDTH, -HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {1.0f, 0.0f}},
+	    {{ HALFWIDTH,  HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {1.0f, 1.0f}},
+	    {{ HALFWIDTH,  HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {1.0f, 1.0f}},
+	    {{-HALFWIDTH,  HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {0.0f, 1.0f}},
+	    {{-HALFWIDTH, -HALFHEIGHT,  0.0f},  {0.0f,  0.0f, 1.0f},   {0.0f, 0.0f}}
+	   },
+	   {},
+	   {{cardAttrib.path, "texture2D", "front"},
+		{"resources/cardback.png", "texture2D", "back"}}), //TODO: changable cardback
+	quadShader("shaders/pack.vs", "shaders/pack.fs"),
+	rarity(cardAttrib.rarity),
+	offset({offset[0], offset[1], 0.0f}),
+	rotate(0.0f), enlarge(0.0f),
+	startRotate(false), startEnlarge(false) {}
 
-		//only save collectiable cards in proper cardsets
-		auto set = doc.FindMember("cardSet");
-		auto tip = doc.FindMember("cardTip");
-		auto images = doc.FindMember("cardImagePaths");
-		bool collectiable;
-		if(set != doc.MemberEnd() && set->value.IsArray()
-		   && tip != doc.MemberEnd() && tip->value.IsArray()
-		   && images != doc.MemberEnd() && images->value.IsArray()
-		   ){
-			std::string setName = set->value[0].GetString();
-			if(isInPack(setName) 
-			   && std::string(tip->value[0].GetString())=="Collectible"
-			   ){
-				//get rarity
-				auto rarityIter = doc.FindMember("cardRarity");
-				auto rarity = std::string(rarityIter->value[0].GetString());
-				commons[setName][rarity].push_back(images->value[0].GetString());
-				goldens[setName][rarity].push_back(images->value[1].GetString());
-			}
-		}
+
+void Card::render(Mouse const &mouse){
+	//transforms
+	bool selected = isSelected(mouse);
+
+	if(selected)
+		startEnlarge = true;
+
+	if(mouse.pressed && selected)
+		startRotate = true;
+
+	if(startRotate){
+		enlarge = std::min(enlarge+0.04f, 180.0f);
+		rotate = std::min(rotate+0.04f, 180.0f);
+	}
+	else if(startEnlarge){
+		if(selected)
+			enlarge = std::min(enlarge+0.04f, 180.0f);
 		else
-			continue;
+			enlarge = std::max(enlarge-0.04f, 0.0f);
 	}
-}
 
-std::string Card::getRandomCard(std::string const &set){
-	bool golden;
-	std::string rarity;
-	float dice = dis(gen);
-	
-	if(dice < 0.111f){
-		golden = true; rarity = "Legendary";
-	}
-	else if(dice < 1.191f){
-		golden = false; rarity = "Legendary";
-	}
-	else if(dice < 1.499f){
-		golden = true; rarity = "Epic";
-	}
-	else if(dice < 5.779f){
-		golden = false; rarity = "Epic";
-	}
-	else if(dice < 7.149f){
-		golden = true; rarity = "Rare";
-	}
-	else if(dice < 28.549f){
-		golden = false; rarity = "Rare";
-	}
-	else if(dice < 30.019f){
-		golden = true; rarity = "Common";
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, offset);
+	model = glm::rotate(model, 0.3f*static_cast<float>(sin(glm::radians(enlarge))), glm::vec3(1.0f, 1.0f, 0.0f));
+	model = glm::scale(model, glm::vec3(1.0f+0.2f*enlarge/180.0f));
+	model = glm::rotate(model, glm::radians(rotate), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	quadShader.use();
+	quadShader.setUniform("model", model);
+
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CCW);
+	if(rotate < 90.0f){
+		glCullFace(GL_BACK);
+		quadShader.setUniform("isFront", 0);
 	}
 	else{
-		golden = false; rarity = "Common";
+		glCullFace(GL_FRONT);
+		quadShader.setUniform("isFront", 1);
 	}
+	quad.draw(quadShader);
 
-	int rand = dis(gen)/100.0f * commons[set][rarity].size();
-	if(golden)
-		return "resources/images/" + goldens[set][rarity][rand];
-	else
-		return "resources/images/" + commons[set][rarity][rand];	
+	glDisable(GL_CULL_FACE);
 }
 
-bool Card::isInPack(std::string const &set) const{
-	if(set == "Classic"
-	   || set == "Goblins vs Gnomes"
-	   || set == "The Grand Tournament"
-	   || set == "Whispers of the Old Gods"
-	   || set == "Mean Streets of Gadgetzan"
-	   || set == "Journey to Un'Goro"
-	   || set == "Knights of the Frozen Throne"
-	   || set == "Kobolds and Catacombs"
-	   || set == "The Witchwood"
-	   || set == "The Boomsday Project"
-	   )
-		return true;
-	else
-		return false;
+
+bool Card::isSelected(Mouse const &mouse) const{
+	return mouse.pos[0] > -HALFWIDTH + offset.x
+		&& mouse.pos[0] < HALFWIDTH + offset.x
+		&& mouse.pos[1] > -HALFHEIGHT + offset.y
+		&& mouse.pos[1] < HALFHEIGHT + offset.y;
 }

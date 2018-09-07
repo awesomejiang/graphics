@@ -39,7 +39,7 @@ private:
 
 
 __GLOBAL__ void initKernel(Particle* vbo, int n, Particle *p);
-__GLOBAL__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state);
+__GLOBAL__ void renderKernel(Particle* dptr, int n, Mouse* mouse);
 __DEVICE__ int getIdx();
 
 

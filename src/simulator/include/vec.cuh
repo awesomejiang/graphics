@@ -14,6 +14,11 @@
 template<int n, typename T>
 class Vec{
 public:
+	__DEVICE__ __HOST__ Vec(){
+		for(auto i=0; i<n; ++i)
+			data[i] = 0.0;
+	}
+
 	template <typename ...Args>
 	__DEVICE__ __HOST__ Vec(Args... args){
 		auto sz = sizeof...(args);
@@ -55,14 +60,14 @@ public:
 	__DEVICE__ __HOST__ Vec<n, T> operator*(T const &d) const{
 		T tmp[n];
 		for(auto i=0; i<n; ++i)
-			tmp[i] *= d;
+			tmp[i] = data[i] *d;
 		return Vec<n, T>{tmp};
 	}
 
 	__DEVICE__ __HOST__ Vec<n, T> operator/(T const &d) const{
 		T tmp[n];
 		for(auto i=0; i<n; ++i)
-			tmp[i] /= d;
+			tmp[i] = data[i] /d;
 		return Vec<n, T>{tmp};
 	}
 

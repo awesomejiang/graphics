@@ -8,52 +8,64 @@ __DEVICE__ __HOST__ Particle::Particle(
 : pos(posIn), vel(velIn), color(colorIn), updateK(update) {}
 
 
-__DEVICE__ __HOST__ void Particle::update(vec2 const &forceCenter, bool pressed){
-	if(updateK == UpdateKernel::gravity)
-		gravityKernel(*this, forceCenter, pressed);
-	//else if(k == Kernel::none)
-	// do nothing
-
-	//printf("%f, %f\n", pos[0], pos[1]);
-}
-
 /* ----- Start implementing kernel functions here ----- */
 #define SOFTEN 0.00000001f
 #define THRESHOLD 0.01f
 
 
-__DEVICE__ __HOST__ void Particle::gravityKernel(Particle &p, vec2 const &forceCenter, bool pressed){
-	if(pressed){
+//particle effects by a downside gravity. Mouse press implement a attraction force at click point.
+template <>
+__DEVICE__ __HOST__ void Particle::kernel<UpdateKernel::gravity>(Mouse const &mouse){
+	if(mouse.pressed){
 		// gravity
 		float G = 0.000005f;
-		auto dist = length(forceCenter-p.pos) + SOFTEN;
-		p.vel += G/(dist*dist*dist) * (forceCenter-p.pos);
+		auto dist = length(mouse.pos-pos) + SOFTEN;
+		vel += G/(dist*dist*dist) * (mouse.pos-pos);
 
-		auto speed = length(p.vel);
-		p.vel = speed>THRESHOLD? norm(p.vel)*THRESHOLD: p.vel;
+		auto speed = length(vel);
+		vel = speed>THRESHOLD? norm(vel)*THRESHOLD: vel;
 	}
 	//pos move
-	p.pos += p.vel;
+	pos += vel;
 	//add a downside force field
 	float g = 0.000005f;
-	p.vel += vec2(0.0f, -g);
+	vel += vec2(0.0f, -g);
 
 	//when meet boundary
 	//bump back and get a vel decay
-	if(p.pos[0] < -1.0f){
-		p.pos[0] = -1.0f;
-		p.vel[0] = abs(p.vel[0]) * 0.5;
+	if(pos[0] < -1.0f){
+		pos[0] = -1.0f;
+		vel[0] = abs(vel[0]) * 0.5;
 	}
-	else if(p.pos[0] > 1.0f){
-		p.pos[0] = 1.0f;
-		p.vel[0] = -abs(p.vel[0]) * 0.5;
+	else if(pos[0] > 1.0f){
+		pos[0] = 1.0f;
+		vel[0] = -abs(vel[0]) * 0.5;
 	}
-	if(p.pos[1] > 1.0f){
-		p.pos[1] = 1.0f;
-		p.vel[1] = -abs(p.vel[1]) * 0.5;
+	if(pos[1] > 1.0f){
+		pos[1] = 1.0f;
+		vel[1] = -abs(vel[1]) * 0.5;
 	}
-	else if(p.pos[1] < -1.0f){
-		p.pos[1] = -1.0f;
-		p.vel[1] = abs(p.vel[1]) * 0.5;
+	else if(pos[1] < -1.0f){
+		pos[1] = -1.0f;
+		vel[1] = abs(vel[1]) * 0.5;
 	}
+}
+
+template <>
+__DEVICE__ __HOST__ void Particle::kernel<UpdateKernel::shinning>(Mouse const &mouse){
+	pos += vel;
+	
+	if(length(vel) > 0.00000001f)
+		vel /= 1.2f;
+	else{
+		vel = vec2(0.0f, 0.0f);
+		pos += norm(mouse.pos) * 0.1f;
+		printf("%f\n", norm(mouse.pos)[0]);
+	}
+}
+
+
+__DEVICE__ __HOST__ void Particle::update(Mouse const &mouse){
+	UpdateKernel const arg = UpdateKernel::shinning;
+	kernel<arg>(mouse);
 }

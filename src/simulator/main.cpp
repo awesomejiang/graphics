@@ -6,11 +6,12 @@
 
 #include "spirit.cuh"
 #include "utility.cuh"
-#include "card.h"
+#include "pickcard.h"
 #include "shader.h"
 #include "scene.h"
-#include "pack.h"
+#include "card.h"
 
+/*
 std::vector<Particle> generateRandomParticles(int n){
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -28,20 +29,39 @@ std::vector<Particle> generateRandomParticles(int n){
 
 	return ret;
 }
+*/
 
+std::vector<Particle> generateRandomParticles(int n){
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> uniformDis(0.0f, 1.0f);
+	std::normal_distribution<float> normalDis(0.0f, 1.0f);
+
+	std::vector<Particle> ret;
+	for(auto i=0; i<n; ++i){
+		float rand = uniformDis(gen) - 0.5f;
+		vec2 pos = vec2(-0.5f, rand);
+		float vr = 0.01f*normalDis(gen), vtheta = uniformDis(gen)*2*M_PI;
+		auto k = UpdateKernel::shinning;
+		ret.emplace_back(
+			k, pos, vec2(vr*cos(vtheta), vr*sin(vtheta)), vec4(0.1f, 0.2f, 0.3f, 1.0f)
+		);
+	}
+
+	return ret;
+}
 
 
 int main(int argc, char** argv){
 	long long int n = atoll(argv[1]);
 
 	Scene scene(800, 600, "pack simulator");
-	//Spirit spirit(generateRandomParticles(n));
+	Spirit spirit(generateRandomParticles(n));
 
-	Card card("resources/cardinfo.json");
+	PickCard cardEngine("resources/cardinfo.json");
 
-	auto image = card.getRandomCard("Classic");
-	//std::cout << image << std::endl;
-	Pack pack(image, "resources/box.png");
+	auto randomCard = cardEngine.getRandomCard("Classic");
+	Card card(randomCard, {0.2f, 0.2f});
 
 	while(!glfwWindowShouldClose(scene.window)){
 		scene.processInput();
@@ -53,8 +73,8 @@ int main(int argc, char** argv){
     	glClear(GL_COLOR_BUFFER_BIT);
 
     	//draw
-		//spirit.render(mouse);
-    	pack.render(mouse);
+		spirit.render(mouse);
+    	//card.render(mouse);
     	
     	//check status
     	glfwSwapBuffers(scene.window);

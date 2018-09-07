@@ -5,11 +5,13 @@
 #include <cstdio>
 
 #include "macros.cuh"
+#include "utility.cuh"
 #include "vec.cuh"
 
 enum class UpdateKernel{
 	none,
-	gravity
+	gravity,
+	shinning
 };
 
 class Particle{
@@ -21,14 +23,16 @@ public:
 		vec4 const &color = {1.0f, 1.0f, 1.0f, 1.0f}
 	);
 
-	__DEVICE__ __HOST__ void update(vec2 const &forceCenter, bool pressed);
+	__DEVICE__ __HOST__ void update(Mouse const &mouse);
 
 	vec2 pos, vel;
 	vec4 color;
 
 private:
 	UpdateKernel updateK;
-	__DEVICE__ __HOST__ void gravityKernel(Particle &p, vec2 const &forceCenter, bool pressed);
+
+	template<UpdateKernel K>
+	__DEVICE__ __HOST__ void kernel(Mouse const &mouse);
 };
 
 

@@ -79,17 +79,17 @@ void Spirit::initCuda(){
 
 void Spirit::render(Mouse const &mouse){
 	//get mouse position
-	vec2* deviceMousePos = nullptr;
-	auto sz = sizeof(vec2);
-	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMousePos, sz) );
-	CUDA_SAFE_CALL( cudaMemcpy(deviceMousePos, &mouse.pos, sz, cudaMemcpyHostToDevice) );
+	Mouse* deviceMouse = nullptr;
+	auto sz = sizeof(Mouse);
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMouse, sz) );
+	CUDA_SAFE_CALL( cudaMemcpy(deviceMouse, &mouse, sz, cudaMemcpyHostToDevice) );
 
 	//map dptr to VBO
 	size_t retSz;
 	Particle *dptr = nullptr;
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dptr, &retSz, resource) );
 	//run cuda kernel
-	renderKernel<<<block, grid>>>(dptr, nParticle, deviceMousePos, mouse.pressed);
+	renderKernel<<<block, grid>>>(dptr, nParticle, deviceMouse);
 	CUDA_ERROR_CHECKER;
 
 	//draw
@@ -105,7 +105,7 @@ void Spirit::render(Mouse const &mouse){
 	glDisable(GL_BLEND);
 
 	//free
-	CUDA_SAFE_CALL( cudaFree(deviceMousePos) );
+	CUDA_SAFE_CALL( cudaFree(deviceMouse) );
 }
 
 __GLOBAL__ void initKernel(Particle* dptr, int n, Particle *p){
@@ -116,13 +116,12 @@ __GLOBAL__ void initKernel(Particle* dptr, int n, Particle *p){
     dptr[index] = p[index];
 }
 
-__GLOBAL__ void renderKernel(Particle* dptr, int n, vec2 *pos, int state){
+__GLOBAL__ void renderKernel(Particle* dptr, int n, Mouse *mouse){
     int index = getIdx();
     if(index > n)
     	return ;
 
-    bool pressed = state==GLFW_PRESS? true: false;
-    dptr[index].update(*pos, pressed);
+    dptr[index].update(*mouse);
 }
 
 __DEVICE__ int getIdx(){
