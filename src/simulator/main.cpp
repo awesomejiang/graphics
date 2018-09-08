@@ -16,7 +16,8 @@ int main(int argc, char** argv){
 
 	Scene scene(800, 600, "pack simulator");
 
-	Spirit spirit(n);
+	Spirit spirit(n, InitKernelEnum::square);
+	auto uk = UpdateKernelEnum::shinning;
 
 	//PickCard cardEngine("resources/cardinfo.json");
 
@@ -45,7 +46,7 @@ int main(int argc, char** argv){
     	glClear(GL_COLOR_BUFFER_BIT);
 
     	//draw
-		spirit.render(mouse);
+		spirit.render(uk, mouse);
     	//card.render(mouse);
     	
     	//check status

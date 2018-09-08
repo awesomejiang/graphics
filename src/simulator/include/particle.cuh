@@ -9,13 +9,13 @@
 #include "utility.cuh"
 #include "vec.cuh"
 
-enum class InitKernel{
+enum class InitKernelEnum{
 	bottom,
 	square,
 	none
 };
 
-enum class UpdateKernel{
+enum class UpdateKernelEnum{
 	gravity,
 	shinning,
 	none
@@ -29,14 +29,21 @@ public:
 		vec4 const &color = {1.0f, 1.0f, 1.0f, 1.0f}
 	);
 
-	template<InitKernel UK>
-	__DEVICE__ void init(curandState* state);
+	__DEVICE__ void init(InitKernelEnum const &ik, curandState* state);
 
-	template<UpdateKernel K>
-	__DEVICE__ void update(curandState* state, Mouse const &mouse);
+	__DEVICE__ void update(UpdateKernelEnum const &uk, Mouse const &mouse);
 
 	vec2 pos, vel;
 	vec4 color;
+
+private:
+	template<InitKernelEnum IK>
+	__DEVICE__ void initKernel();
+
+	template<UpdateKernelEnum UK>
+	__DEVICE__ void updateKernel(Mouse const &mouse);
+
+	curandState *randState;
 };
 
 #endif

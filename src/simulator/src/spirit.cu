@@ -5,7 +5,7 @@
 #define MAX_BLOCK_Y 65535ll
 #define MAX_BLOCK_Z 65535ll
 
-Spirit::Spirit(int const &n)
+Spirit::Spirit(int const &n, InitKernelEnum const &ik)
 : resource(0),
   nParticle(n),
   deviceParticles(nullptr),
@@ -13,7 +13,7 @@ Spirit::Spirit(int const &n)
   pShader("shaders/particle.vs", "shaders/particle.fs"){
 	createVBO();
 	setCallBacks();
-	initCuda();
+	initCuda(ik);
 }
 
 Spirit::~Spirit(){
@@ -55,10 +55,14 @@ void Spirit::setCallBacks() const{
 }
 
 
-void Spirit::initCuda(){
+void Spirit::initCuda(InitKernelEnum const &ik){
 	deployGrid();
 
 	// cuda allocations
+	auto sz = sizeof(InitKernelEnum);
+	InitKernelEnum *deviceIK = nullptr;
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceIK, sz) );
+	CUDA_SAFE_CALL( cudaMemcpy(deviceIK, &ik, sz, cudaMemcpyHostToDevice) );
 	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceParticles, nParticle*sizeof(Particle)) );
 	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceRandStates, nParticle*sizeof(curandState)) );
 
@@ -72,37 +76,33 @@ void Spirit::initCuda(){
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dp, &retSz, resource) );
 
 	//run cuda kernel
-	initKernel<<<grid, block>>>(dp, deviceRandStates, nParticle);
+	initKernel<<<grid, block>>>(*deviceIK, dp, deviceRandStates, nParticle);
 	CUDA_ERROR_CHECKER;
 	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+
+	//free
+	CUDA_SAFE_CALL( cudaFree(deviceIK) );
 }
 
-__GLOBAL__ void initKernel(Particle* dp, curandState* dr, int n){
-    int index = getIdx();
-    if(index > n)
-    	return ;
-
-    curandState *state = &dr[index];
-	//init curand states
-	curand_init(clock64(), index, 0, state);
-
-	dp[index].init<InitKernel::bottom>(state);
-}
-
-
-void Spirit::render(Mouse const &mouse){
-	//get mouse position
+void Spirit::render(UpdateKernelEnum const &uk, Mouse const &mouse){
+	//set mouse position to device
 	Mouse* deviceMouse = nullptr;
 	auto sz = sizeof(Mouse);
 	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMouse, sz) );
 	CUDA_SAFE_CALL( cudaMemcpy(deviceMouse, &mouse, sz, cudaMemcpyHostToDevice) );
+
+	//set uk to device
+	sz = sizeof(UpdateKernelEnum);
+	UpdateKernelEnum *deviceUK = nullptr;
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceUK, sz) );
+	CUDA_SAFE_CALL( cudaMemcpy(deviceUK, &uk, sz, cudaMemcpyHostToDevice) );
 
 	//map dptr to VBO
 	size_t retSz;
 	Particle *dptr = nullptr;
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dptr, &retSz, resource) );
 	//run cuda kernel
-	renderKernel<<<block, grid>>>(dptr, deviceRandStates, nParticle, *deviceMouse);
+	renderKernel<<<block, grid>>>(*deviceUK, dptr, nParticle, *deviceMouse);
 	CUDA_ERROR_CHECKER;
 	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 
@@ -120,14 +120,28 @@ void Spirit::render(Mouse const &mouse){
 
 	//free
 	CUDA_SAFE_CALL( cudaFree(deviceMouse) );
+	CUDA_SAFE_CALL( cudaFree(deviceUK) );
 }
 
-__GLOBAL__ void renderKernel(Particle* dp, curandState* dr, int n, Mouse const &mouse){
+__GLOBAL__ void initKernel(InitKernelEnum const &ik, Particle* dp, curandState* dr, int n){
     int index = getIdx();
     if(index > n)
     	return ;
 
-    dp[index].update<UpdateKernel::gravity>(&dr[index], mouse);
+    curandState *state = &dr[index];
+	//init curand states
+	curand_init(clock64(), index, 0, state);
+
+	dp[index].init(ik, state);
+}
+
+__GLOBAL__ void renderKernel(
+ UpdateKernelEnum const &uk, Particle* dp, int n, Mouse const &mouse){
+    int index = getIdx();
+    if(index > n)
+    	return ;
+
+    dp[index].update(uk, mouse);
 }
 
 
@@ -152,10 +166,4 @@ void Spirit::deployGrid(){
 	}
 	else
 		throw std::runtime_error("No particles in screen.");
-}
-
-
-__DEVICE__ int getIdx(){
-	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
-	return blockDim.x*grid + threadIdx.x;
 }

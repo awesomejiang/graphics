@@ -20,10 +20,13 @@
 
 class Spirit{
 public:
-	Spirit(int const &n);
+	Spirit(
+		int const &n = 102400,
+		InitKernelEnum const &ik = InitKernelEnum::bottom
+	);
 	~Spirit();
-	void initCuda();
-	void render(Mouse const &mouse);
+	void initCuda(InitKernelEnum const &ik);
+	void render(UpdateKernelEnum const &uk, Mouse const &mouse);
 
 private:
 	void createVBO();
@@ -31,19 +34,19 @@ private:
 
 	void deployGrid();
 
+	int nParticle;
 	Particle* deviceParticles;
 	curandState* deviceRandStates;
 	unsigned int width, height, VBO, VAO;
 	Shader pShader;
 	cudaGraphicsResource_t resource;
-	int nParticle;
 	dim3 block, grid;
 };
 
+__GLOBAL__ void initKernel(InitKernelEnum const &ik, Particle* dp, curandState* dr, int n);
 
-__GLOBAL__ void initKernel(Particle* dp, curandState* dr, int n);
-__GLOBAL__ void renderKernel(Particle* dp, curandState* dr, int n, Mouse const &mouse);
-__DEVICE__ int getIdx();
+__GLOBAL__ void renderKernel(
+	UpdateKernelEnum const &uk, Particle* dp, int n, Mouse const &mouse);
 
 
 #endif

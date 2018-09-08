@@ -11,6 +11,13 @@ void __cudaErrorChecker(const char *file, const int line){
 		printf("Error in %s, line %i: %s\n", file, line, cudaGetErrorString(error));
 }
 
+
+__DEVICE__ int getIdx(){
+	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
+	return blockDim.x*grid + threadIdx.x;
+}
+
+
 Mouse getMouse(Scene const &scene){
 	//if click on card, flip it
 	double mouseX, mouseY;

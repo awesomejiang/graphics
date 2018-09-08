@@ -8,14 +8,18 @@
 #include "scene.h"
 #include "vec.cuh"
 
+// cuda related helper functions/macros
 #if __CUDACC__
 
 void __cudaSafeCall(cudaError error, const char *file, const int line);
 
 void __cudaErrorChecker(const char *file, const int line);
 
+__DEVICE__ int getIdx();
+
 #endif
 
+//global helper functions
 struct Mouse{
 	vec2 pos;
 	bool pressed;
