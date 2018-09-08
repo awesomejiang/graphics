@@ -6,19 +6,21 @@
 
 #include <cuda.h>
 #include <cuda_gl_interop.h>
+#include <curand.h>
+#include <curand_kernel.h>
 
 #include <vector>
 #include <stdexcept>
 
 #include "macros.cuh"
 #include "vec.cuh"
-#include "particle.cuh"
 #include "utility.cuh"
 #include "shader.h"
+#include "particle.cuh"
 
 class Spirit{
 public:
-	Spirit(std::vector<Particle> particles);
+	Spirit(int const &n);
 	~Spirit();
 	void initCuda();
 	void render(Mouse const &mouse);
@@ -29,8 +31,9 @@ private:
 
 	void deployGrid();
 
+	Particle* deviceParticles;
+	curandState* deviceRandStates;
 	unsigned int width, height, VBO, VAO;
-	std::vector<Particle> particles;
 	Shader pShader;
 	cudaGraphicsResource_t resource;
 	int nParticle;
@@ -38,8 +41,8 @@ private:
 };
 
 
-__GLOBAL__ void initKernel(Particle* vbo, int n, Particle *p);
-__GLOBAL__ void renderKernel(Particle* dptr, int n, Mouse* mouse);
+__GLOBAL__ void initKernel(Particle* dp, curandState* dr, int n);
+__GLOBAL__ void renderKernel(Particle* dp, curandState* dr, int n, Mouse const &mouse);
 __DEVICE__ int getIdx();
 
 

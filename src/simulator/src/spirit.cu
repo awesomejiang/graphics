@@ -5,10 +5,11 @@
 #define MAX_BLOCK_Y 65535ll
 #define MAX_BLOCK_Z 65535ll
 
-Spirit::Spirit(std::vector<Particle> particles)
-: particles(particles),
-  resource(0),
-  nParticle(particles.size()),
+Spirit::Spirit(int const &n)
+: resource(0),
+  nParticle(n),
+  deviceParticles(nullptr),
+  deviceRandStates(nullptr),
   pShader("shaders/particle.vs", "shaders/particle.fs"){
 	createVBO();
 	setCallBacks();
@@ -19,6 +20,10 @@ Spirit::~Spirit(){
 	//unmap resource
 	CUDA_SAFE_CALL( cudaGraphicsUnmapResources(1, &resource) );
 	CUDA_SAFE_CALL( cudaGraphicsUnregisterResource(resource) );
+
+	//free
+	CUDA_SAFE_CALL( cudaFree(deviceParticles) );
+	CUDA_SAFE_CALL( cudaFree(deviceRandStates) );
 }
 
 void Spirit::createVBO(){
@@ -29,7 +34,7 @@ void Spirit::createVBO(){
 
 	//set VBO
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, particles.size()*sizeof(Particle), particles.data(), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, nParticle*sizeof(Particle), deviceParticles, GL_STATIC_DRAW);
 
 	//set VAO
 	glEnableVertexAttribArray(0);
@@ -53,27 +58,35 @@ void Spirit::setCallBacks() const{
 void Spirit::initCuda(){
 	deployGrid();
 
-	//cuda allocations
-	auto sz = nParticle*sizeof(Particle);
-	Particle* deviceParticles = nullptr;
-	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceParticles, sz) );
-	CUDA_SAFE_CALL( cudaMemcpy(deviceParticles, particles.data(), sz, cudaMemcpyHostToDevice) );
+	// cuda allocations
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceParticles, nParticle*sizeof(Particle)) );
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceRandStates, nParticle*sizeof(curandState)) );
 
-	//register to cuda
+	//register buffer to cuda
 	CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&resource, VBO, cudaGraphicsRegisterFlagsNone) );
 
 	//map dptr to VBO
 	size_t retSz;
-	Particle *dptr = nullptr;
+	Particle* dp;
 	CUDA_SAFE_CALL( cudaGraphicsMapResources(1, &resource) );
-	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dptr, &retSz, resource) );
+	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dp, &retSz, resource) );
 
 	//run cuda kernel
-	initKernel<<<grid, block>>>(dptr, nParticle, deviceParticles);
+	initKernel<<<grid, block>>>(dp, deviceRandStates, nParticle);
 	CUDA_ERROR_CHECKER;
+	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+}
 
-	//free
-	CUDA_SAFE_CALL( cudaFree(deviceParticles) );
+__GLOBAL__ void initKernel(Particle* dp, curandState* dr, int n){
+    int index = getIdx();
+    if(index > n)
+    	return ;
+
+    curandState *state = &dr[index];
+	//init curand states
+	curand_init(clock64(), index, 0, state);
+
+	dp[index].init<InitKernel::bottom>(state);
 }
 
 
@@ -89,8 +102,9 @@ void Spirit::render(Mouse const &mouse){
 	Particle *dptr = nullptr;
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dptr, &retSz, resource) );
 	//run cuda kernel
-	renderKernel<<<block, grid>>>(dptr, nParticle, deviceMouse);
+	renderKernel<<<block, grid>>>(dptr, deviceRandStates, nParticle, *deviceMouse);
 	CUDA_ERROR_CHECKER;
+	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 
 	//draw
 	pShader.use();
@@ -99,7 +113,7 @@ void Spirit::render(Mouse const &mouse){
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 	glBindVertexArray(VAO);
-	glDrawArrays(GL_POINTS, 0, particles.size());
+	glDrawArrays(GL_POINTS, 0, nParticle);
 	glBindVertexArray(0);
 
 	glDisable(GL_BLEND);
@@ -108,25 +122,12 @@ void Spirit::render(Mouse const &mouse){
 	CUDA_SAFE_CALL( cudaFree(deviceMouse) );
 }
 
-__GLOBAL__ void initKernel(Particle* dptr, int n, Particle *p){
+__GLOBAL__ void renderKernel(Particle* dp, curandState* dr, int n, Mouse const &mouse){
     int index = getIdx();
     if(index > n)
     	return ;
 
-    dptr[index] = p[index];
-}
-
-__GLOBAL__ void renderKernel(Particle* dptr, int n, Mouse *mouse){
-    int index = getIdx();
-    if(index > n)
-    	return ;
-
-    dptr[index].update(*mouse);
-}
-
-__DEVICE__ int getIdx(){
-	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
-	return blockDim.x*grid + threadIdx.x;
+    dp[index].update<UpdateKernel::gravity>(&dr[index], mouse);
 }
 
 
@@ -151,4 +152,10 @@ void Spirit::deployGrid(){
 	}
 	else
 		throw std::runtime_error("No particles in screen.");
+}
+
+
+__DEVICE__ int getIdx(){
+	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
+	return blockDim.x*grid + threadIdx.x;
 }

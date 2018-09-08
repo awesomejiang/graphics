@@ -2,38 +2,41 @@
 #define PARTICLE_CUH
 
 #include <cuda.h>
-#include <cstdio>
+#include <curand.h>
+#include <curand_kernel.h>
 
 #include "macros.cuh"
 #include "utility.cuh"
 #include "vec.cuh"
 
+enum class InitKernel{
+	bottom,
+	square,
+	none
+};
+
 enum class UpdateKernel{
-	none,
 	gravity,
-	shinning
+	shinning,
+	none
 };
 
 class Particle{
 public:
-	__DEVICE__ __HOST__ Particle(
-		UpdateKernel const &update = UpdateKernel::none,
+	__DEVICE__ Particle(
 		vec2 const &pos = {0.0f, 0.0f},
 		vec2 const &vel = {0.0f, 0.0f},
 		vec4 const &color = {1.0f, 1.0f, 1.0f, 1.0f}
 	);
 
-	__DEVICE__ __HOST__ void update(Mouse const &mouse);
+	template<InitKernel UK>
+	__DEVICE__ void init(curandState* state);
+
+	template<UpdateKernel K>
+	__DEVICE__ void update(curandState* state, Mouse const &mouse);
 
 	vec2 pos, vel;
 	vec4 color;
-
-private:
-	UpdateKernel updateK;
-
-	template<UpdateKernel K>
-	__DEVICE__ __HOST__ void kernel(Mouse const &mouse);
 };
-
 
 #endif
