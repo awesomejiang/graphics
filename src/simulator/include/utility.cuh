@@ -19,12 +19,17 @@ __DEVICE__ int getIdx();
 
 #endif
 
-//global helper functions
+//global helpers
+
+#define HALFWIDTH 0.3575f * 0.6f
+#define HALFHEIGHT 0.6583f * 0.6f
+
 struct Mouse{
 	vec2 pos;
-	bool pressed;
+	bool pressed = false;
+	bool firstClicked = false;
 };
 
-Mouse getMouse(Scene const &scene);
+void getMouse(Mouse &mouse, Scene const &scene);
 
 #endif

@@ -9,7 +9,6 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <string>
-#include <random>
 
 #include "mesh.h"
 #include "texture.h"
@@ -19,32 +18,27 @@
 #include "vec.cuh"
 #include "pickcard.h"
 
-#define OPEN_TIME 1.0f
-
 class Card{
 public:
 	Card(CardAttrib const &cardAttrib, vec2 const &offset = {0.0f, 0.0f});
-	void render(Mouse const &m);
+	void render(Mouse const &mouse);
 
 private:
-	bool isSelected(Mouse const &m) const;
-	void update(Mouse const &m);
-	void drawCard() const;
-	//void drawBoundary();
+	bool isSelected(Mouse const &mouse) const;
+	void drawCard(Mouse const &mouse);
+	void drawGlow();
 
 	std::string rarity;
 
-	Mesh card;
-	Shader cardShader{"shaders/card.vs", "shaders/card.fs"};
-	//Shader boundaryShader("shaders/card.vs", "shaders/boundary.fs");
+	Framebuffer colorFB;
+	Mesh card, glowQuad;
+	Shader cardShader, glowShader, finalShader;
 
 	//transform args
-	glm::mat4 model;
 	glm::vec3 offset;
-	float rotate = 0.0f, enlarge = 0.0f, whiteWidth = 0.0f;
-	bool startRotate = false, selected = false;
-	float prevTime = 0.0f, currTime = 0.0f;
-
+	float rotate, enlarge;
+	bool startRotate, startEnlarge;
+	float prevTime, currTime;
 };
 
 #endif

@@ -18,15 +18,16 @@ __DEVICE__ int getIdx(){
 }
 
 
-Mouse getMouse(Scene const &scene){
+void getMouse(Mouse &mouse, Scene const &scene){
 	//if click on card, flip it
 	double mouseX, mouseY;
 	glfwGetCursorPos(scene.window, &mouseX, &mouseY);
 	mouseX = mouseX/scene.width * 2 - 1.0;
 	mouseY = -mouseY/scene.height * 2 + 1.0; //mouseY is bottom down
-	vec2 mousePos = {static_cast<float>(mouseX), static_cast<float>(mouseY)};
+	mouse.pos = {static_cast<float>(mouseX), static_cast<float>(mouseY)};
 
-	bool pressed = glfwGetMouseButton(scene.window, GLFW_MOUSE_BUTTON_LEFT);
+	mouse.pressed = glfwGetMouseButton(scene.window, GLFW_MOUSE_BUTTON_LEFT);
 
-	return {mousePos, pressed};
+	if(!mouse.firstClicked && mouse.pressed)
+		mouse.firstClicked = true;
 }

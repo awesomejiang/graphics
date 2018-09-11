@@ -14,3 +14,11 @@
 
 09/06
 1. Start working on lighting boundaries.        
+
+09/09
+1. Finish glow version of lighting boundaries.       
+2. Start working on stencil version(much practical one).
+
+09/10
+1. Card effects down.
+2. Start implementing pakc effects.

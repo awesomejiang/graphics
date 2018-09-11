@@ -1,10 +1,10 @@
 CXX = nvcc
-FLAGS = -std=c++11 -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -lineinfo
+FLAGS = -std=c++14 -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -lineinfo
 
 PROGS = main
 
 CUS = utility particle spirit vec
-CPPS = card mesh texture shader scene pickcard
+CPPS = pack card pickcard framebuffer mesh texture shader scene 
 
 CU_OBJS = $(patsubst %, obj/%.o, $(CUS))
 

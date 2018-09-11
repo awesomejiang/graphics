@@ -6,23 +6,20 @@
 
 #include "spirit.cuh"
 #include "utility.cuh"
-#include "pickcard.h"
-#include "shader.h"
 #include "scene.h"
-#include "card.h"
+#include "pack.h"
 
 int main(int argc, char** argv){
-	long long int n = atoll(argv[1]);
+	//long long int n = atoll(argv[1]);
 
 	Scene scene(800, 600, "pack simulator");
 
-	Spirit spirit(n, InitKernelEnum::square);
-	auto uk = UpdateKernelEnum::shinning;
+	Mouse mouse;
 
-	//PickCard cardEngine("resources/cardinfo.json");
+	//Spirit spirit(n, InitKernelEnum::square);
+	//auto uk = UpdateKernelEnum::shinning;
 
-	//auto randomCard = cardEngine.getRandomCard("Classic");
-	//Card card(randomCard, {0.2f, 0.2f});
+	Pack pack("Classic");
 
 	float prevTime = glfwGetTime();
 	float currTime;
@@ -38,17 +35,17 @@ int main(int argc, char** argv){
 		}
 
 		scene.processInput();
-		auto mouse = getMouse(scene);
+		getMouse(mouse, scene);
 
 		//clear output
 		glViewport(0, 0, scene.width, scene.height);
     	glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
-    	glClear(GL_COLOR_BUFFER_BIT);
+    	glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     	//draw
-		spirit.render(uk, mouse);
-    	//card.render(mouse);
-    	
+		//spirit.render(uk, mouse);
+		pack.render(mouse);
+
     	//check status
     	glfwSwapBuffers(scene.window);
     	glfwPollEvents();

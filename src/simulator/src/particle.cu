@@ -24,13 +24,14 @@ __DEVICE__ void Particle::initKernel<InitKernelEnum::bottom>(){
 // bottom: 
 template <>
 __DEVICE__ void Particle::initKernel<InitKernelEnum::square>(){
-	float rand = curand_uniform(randState) - 0.5f;
+	float randX = (curand_uniform(randState)*2.0f - 1.0f) * HALFWIDTH;
+	float randY = (curand_uniform(randState)*2.0f - 1.0f) * HALFHEIGHT;
 	int index = getIdx();
 	switch(index%4){
-		case 0: pos = vec2(-0.5f, rand); break;
-		case 1: pos = vec2(0.5f, rand); break;
-		case 2: pos = vec2(rand, -0.5f); break;
-		case 3: pos = vec2(rand, 0.5f); break;
+		case 0: pos = vec2(-HALFWIDTH, randY); break;
+		case 1: pos = vec2(HALFWIDTH, randY); break;
+		case 2: pos = vec2(randX, -HALFHEIGHT); break;
+		case 3: pos = vec2(randX, HALFHEIGHT); break;
 	}
 	
 	float r = 0.1f*curand_normal(randState), theta = curand_uniform(randState)*2*M_PI;
@@ -87,18 +88,11 @@ __DEVICE__ void Particle::updateKernel<UpdateKernelEnum::gravity>(Mouse const &m
 
 template <>
 __DEVICE__ void Particle::updateKernel<UpdateKernelEnum::shinning>(Mouse const &mouse){
-	float rand = curand_uniform(randState) - 0.5f;
-	int index = getIdx();
-	switch(index%4){
-		case 0: pos = vec2(-0.5f, rand); break;
-		case 1: pos = vec2(0.5f, rand); break;
-		case 2: pos = vec2(rand, -0.5f); break;
-		case 3: pos = vec2(rand, 0.5f); break;
-	}
-	
-	float r = 0.1f*curand_normal(randState), theta = curand_uniform(randState)*2*M_PI;
+	float r = 0.001f*curand_normal(randState), theta = curand_uniform(randState)*2*M_PI;
 	pos += vec2(r*cos(theta), r*sin(theta));
 	
+	if(mouse.firstClicked)
+		color -= vec4(0.0001f, 0.0002f, 0.0003f, 0.0f);
 }
 
 /* ------ End of kernel implementations ------ */
