@@ -5,7 +5,8 @@ HEADERS = /home/jiawei/Dropbox/github/hsCrawler/src/headers
 
 PROGS = main
 
-CUS = flame utility vec_float
+CUS = square gravity flame
+CUS += utility vec_float
 CPPS = framebuffer mesh texture shader scene
 
 CU_OBJS = $(patsubst %, obj/%.o, $(CUS))

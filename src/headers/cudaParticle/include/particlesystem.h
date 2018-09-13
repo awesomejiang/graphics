@@ -17,6 +17,11 @@
 #include "utility.h"
 #include "shader.h"
 
+// for every concrete particle class, those function have to be overrided/specialized:
+// void Particle::setVAO
+// void initKernel(Particle*, int const &n, Mouse const &mouse);
+// void initKernel(Particle*, Mouse const &mouse);
+
 template <typename ParticleType>
 class ParticleSystem{
 public:
@@ -27,11 +32,11 @@ public:
 
 private:
 	void createVBO();
-	//virtual void setVAO() const;
-	void setCallBacks() const;
+	virtual void setVAO() const = 0;
 
 	void deployGrid();
 
+	bool init = false;
 	int nParticle;
 	ParticleType* deviceParticles = nullptr;
 	unsigned int width, height, VBO, VAO;
@@ -41,8 +46,3 @@ private:
 };
 
 #endif
-/*
-    curandState *state = &dr[index];
-	//init curand states
-	curand_init(clock64(), index, 0, state);
-*/

@@ -13,9 +13,8 @@ template <typename ParticleType>
 ParticleSystem<ParticleType>::ParticleSystem(int const &n, Shader const &shader)
 : nParticle(n),
   shader(shader){
-	createVBO();
-	setCallBacks();
-	initCuda();
+  	//set call backs;
+	//glfwSetCursorPosCallback(scene.window, [](GLFWWindow *window, float x, float y){});
 }
 
 template <typename ParticleType>
@@ -40,13 +39,7 @@ void ParticleSystem<ParticleType>::createVBO(){
 	glBufferData(GL_ARRAY_BUFFER, nParticle*sizeof(ParticleType), deviceParticles, GL_STATIC_DRAW);
 
 	//set VAO
-	//ParticleType::setVAO();
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(0));
-	glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*1));
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*2));
+	setVAO();
 
 	//unbind
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -54,10 +47,18 @@ void ParticleSystem<ParticleType>::createVBO(){
 
 }
 
+/*
 template <typename ParticleType>
-void ParticleSystem<ParticleType>::setCallBacks() const{
-	//glfwSetCursorPosCallback(scene.window, [](GLFWWindow *window, float x, float y){});
+void ParticleSystem<ParticleType>::setVAO() const{
+	printf("base\n");
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(0));
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*1));
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*2));
 }
+*/
 
 
 template <typename ParticleType>
@@ -79,6 +80,12 @@ void ParticleSystem<ParticleType>::initCuda(){
 
 template <typename ParticleType>
 void ParticleSystem<ParticleType>::render(Mouse const &mouse){
+	//to init cuda device
+	if(!init){
+		createVBO();
+		initCuda();
+	}
+
 	//set mouse position to device
 	Mouse* deviceMouse = nullptr;
 	auto sz = sizeof(Mouse);
@@ -89,10 +96,21 @@ void ParticleSystem<ParticleType>::render(Mouse const &mouse){
 	size_t retSz;
 	ParticleType *dp = nullptr;
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dp, &retSz, resource) );
-	//run cuda kernel
-	updateKernel<<<block, grid>>>(dp, nParticle, *deviceMouse);
-	CUDA_ERROR_CHECKER;
-	CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+
+	//run cuda kernel	
+	//if this is the first loop
+	if(!init){
+		init = true;
+		initKernel<<<block, grid>>>(dp, nParticle, *deviceMouse);
+		CUDA_ERROR_CHECKER;
+		CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+		return ;
+	}
+	else{
+		updateKernel<<<block, grid>>>(dp, *deviceMouse);
+		CUDA_ERROR_CHECKER;
+		CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+	}
 
 	//draw
 	shader.use();

@@ -24,6 +24,7 @@ __DEVICE__ int getIdx();
 #define HALFWIDTH 0.3575f * 0.6f
 #define HALFHEIGHT 0.6583f * 0.6f
 
+//get mouse position on scene
 struct Mouse{
 	vec2 pos;
 	bool pressed = false;
@@ -31,5 +32,10 @@ struct Mouse{
 };
 
 void getMouse(Mouse &mouse, Scene const &scene);
+
+
+//ugly hack for:
+//"non-pod" offsetof
+#define OFFSETOF(t, e) (void*)(&static_cast<t*>(0)->e)
 
 #endif

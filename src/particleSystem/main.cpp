@@ -8,6 +8,8 @@
 #include "utility.h"
 #include "scene.h"
 #include "flame.h"
+#include "gravity.h"
+#include "square.h"
 
 int main(int argc, char** argv){
 	long long int n = atoll(argv[1]);
@@ -16,7 +18,7 @@ int main(int argc, char** argv){
 
 	Mouse mouse;
 
-	Flame flame;
+	Gravity ps(n);
 
 	float prevTime = glfwGetTime();
 	float currTime;
@@ -40,7 +42,7 @@ int main(int argc, char** argv){
     	glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     	//draw
-		flame.render(mouse);
+		ps.render(mouse);
 
     	//check status
     	glfwSwapBuffers(scene.window);
