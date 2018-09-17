@@ -7,9 +7,10 @@
 
 #include "utility.h"
 #include "scene.h"
-#include "flame.h"
 #include "gravity.h"
 #include "square.h"
+#include "tailing.h"
+#include "click.h"
 
 int main(int argc, char** argv){
 	long long int n = atoll(argv[1]);
@@ -18,7 +19,7 @@ int main(int argc, char** argv){
 
 	Mouse mouse;
 
-	Gravity ps(n);
+	Click ps(n);
 
 	float prevTime = glfwGetTime();
 	float currTime;

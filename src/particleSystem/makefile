@@ -1,27 +1,31 @@
 CXX = nvcc
-CU_FLAGS = -std=c++14 -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -lineinfo
+CU_FLAGS = -std=c++14 -x cu -Xcudafe --diag_suppress=esa_on_defaulted_function_ignored -lineinfo
 CPP_FLAGS = -std=c++14
 HEADERS = /home/jiawei/Dropbox/github/hsCrawler/src/headers
 
 PROGS = main
 
-CUS = square gravity flame
-CUS += utility vec_float
-CPPS = framebuffer mesh texture shader scene
+PS = click tailing square gravity
+UTIL = utility vec_float
+FLUID = fluid
+GL = framebuffer mesh texture shader scene
 
-CU_OBJS = $(patsubst %, obj/%.o, $(CUS))
-CU_INCLUDES = $(HEADERS)/cudaParticle/include
-CU_SRCS = $(HEADERS)/cudaParticle/src
-CPP_OBJS = $(patsubst %, obj/%.o, $(CPPS))
-CPP_INCLUDES = $(HEADERS)/myGL/include
-CPP_SRCS = $(HEADERS)/myGL/src
+PS_PATH = $(HEADERS)/cudaParticle
+UTIL_PATH = $(HEADERS)/utility
+FLUID_PATH = $(HEADERS)/cudaFluid
+GL_PATH = $(HEADERS)/myGL
 
 LINKS = -lcuda -lcudart -lglfw3 -lGL -lX11 -lpthread -lXrandr -lXinerama -lXxf86vm -lXcursor -lXi -ldl -lassimp
 
+
+INCLUDES = $(foreach path, $(PS_PATH) $(UTIL_PATH) $(FLUID_PATH) $(GL_PATH), -I $(path)/include)
+PROGS_OBJ = $(patsubst %, obj/%.o, $(PROGS))
+PS_OBJ = $(patsubst %, obj/%.o, $(PS))
+FLUID_OBJ = $(patsubst %, obj/%.o, $(FLUID))
+UTIL_OBJ = $(patsubst %, obj/%.o, $(UTIL))
+GL_OBJ = $(patsubst %, obj/%.o, $(GL))
+OBJS = $(PROGS_OBJ) $(PS_OBJ) $(UTIL_OBJ) $(FLUID_OBJ) $(GL_OBJ)
 DIRS = obj
-
-
-all: $(DIRS) $(PROGS)
 
 define printMeg
 	@tput setaf 3
@@ -29,26 +33,41 @@ define printMeg
 	@tput sgr0
 endef
 
-$(PROGS): %: %.cpp $(CU_OBJS) $(CPP_OBJS)
-	$(call printMeg, "Building $(PROGS) ...")
+all: $(DIRS) $(PROGS)
 
-	$(CXX) $(CU_FLAGS) -x cu -dc -I $(CU_INCLUDES) -I $(CPP_INCLUDES) -o obj/$@.o $<
-	$(CXX) $(CPP_FLAGS) -I $(CU_INCLUDES) -I $(CPP_INCLUDES) \
-		$(CU_OBJS) $(CPP_OBJS) obj/$@.o $(CPP_SRCS)/glad.c -o $@ $(LINKS)
+$(PROGS): %: %.cpp $(PS_OBJ) $(UTIL_OBJ) $(FLUID_OBJ) $(GL_OBJ)
+	$(call printMeg, "Building main program: $(PROGS) ...")
 
-	$(call printMeg, "Built!\n")
-
-$(CU_OBJS): obj/%.o: $(CU_SRCS)/%.cpp $(CU_INCLUDES)/%.h
-	$(call printMeg, "Building obj/$*.o ...")
-
-	$(CXX) $(CU_FLAGS) -x cu -dc -I $(CU_INCLUDES) -I $(CPP_INCLUDES) -o $@ $<
+	$(CXX) $(CU_FLAGS) -dc $(INCLUDES) -o obj/$@.o $<
+	$(CXX) $(CPP_FLAGS) $(INCLUDES) $(OBJS) $(GL_PATH)/src/glad.c -o $@ $(LINKS)
 
 	$(call printMeg, "Built!\n")
 
-$(CPP_OBJS): obj/%.o: $(CPP_SRCS)/%.cpp $(CPP_INCLUDES)/%.h
-	$(call printMeg, "Building obj/$*.o ...")
+$(PS_OBJ): obj/%.o: $(PS_PATH)/src/%.cpp $(PS_PATH)/include/%.h
+	$(call printMeg, "Building cudaParticle: obj/$*.o ...")
 
-	$(CXX) $(CPP_FLAGS) -c -I $(CU_INCLUDES) -I $(CPP_INCLUDES) -o $@ $<
+	$(CXX) $(CU_FLAGS) $(INCLUDES) -dc -o $@ $<
+
+	$(call printMeg, "Built!\n")
+
+$(FLUID_OBJ): obj/%.o: $(FLUID_PATH)/src/%.cpp $(FLUID_PATH)/include/%.h
+	$(call printMeg, "Building cudaFluid: obj/$*.o ...")
+
+	$(CXX) $(CU_FLAGS) $(INCLUDES) -dc -o $@ $<
+
+	$(call printMeg, "Built!\n")
+
+$(UTIL_OBJ): obj/%.o: $(UTIL_PATH)/src/%.cpp $(UTIL_PATH)/include/%.h
+	$(call printMeg, "Building utility: obj/$*.o ...")
+
+	$(CXX) $(CU_FLAGS) $(INCLUDES) -dc -o $@ $<
+
+	$(call printMeg, "Built!\n")
+
+$(GL_OBJ): obj/%.o: $(GL_PATH)/src/%.cpp $(GL_PATH)/include/%.h
+	$(call printMeg, "Building myGL: obj/$*.o ...")
+
+	$(CXX) $(CPP_FLAGS) $(INCLUDES) -c -o $@ $<
 
 	$(call printMeg, "Built!\n")
 
@@ -56,8 +75,7 @@ $(CPP_OBJS): obj/%.o: $(CPP_SRCS)/%.cpp $(CPP_INCLUDES)/%.h
 $(DIRS):
 	mkdir -p $@
 
+
+.PHONY: clean
 clean:
 	rm -rf $(PROGS) $(DIRS)
-
-
-	#$(CXX) $(FLAGS) -dlink $(CU_OBJS) $(CPP_OBJS) -o obj/$@_links.o

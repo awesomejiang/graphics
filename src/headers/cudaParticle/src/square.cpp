@@ -24,7 +24,6 @@ __GLOBAL__ void initKernel(SquareParticle* p, int n, Mouse const &mouse){
 	
 	SquareParticle &pr = p[idx];
 
-	pr.live = true;
 	curand_init(clock64(), idx, 0, &pr.rand);
 	//position
 	float randX = (curand_uniform(&pr.rand)*2.0f - 1.0f) * HALFWIDTH;
@@ -44,8 +43,10 @@ __GLOBAL__ void initKernel(SquareParticle* p, int n, Mouse const &mouse){
 }
 
 
-__GLOBAL__ void updateKernel(SquareParticle* p, Mouse const &mouse){
+__GLOBAL__ void updateKernel(SquareParticle* p, int n, Mouse const &mouse){
 	auto idx = getIdx();
+	if(idx > n)
+		return ;
 
 	SquareParticle &pr = p[idx];
 

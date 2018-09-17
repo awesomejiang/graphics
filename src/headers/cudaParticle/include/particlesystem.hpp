@@ -3,7 +3,7 @@
 
 #include "particlesystem.h"
 
-#define MAX_THREAD 1024
+#define MAX_THREAD 256
 #define MAX_BLOCK_X 65535ll
 #define MAX_BLOCK_Y 65535ll
 #define MAX_BLOCK_Z 65535ll
@@ -22,9 +22,6 @@ ParticleSystem<ParticleType>::~ParticleSystem(){
 	//unmap resource
 	CUDA_SAFE_CALL( cudaGraphicsUnmapResources(1, &resource) );
 	CUDA_SAFE_CALL( cudaGraphicsUnregisterResource(resource) );
-
-	//free
-	CUDA_SAFE_CALL( cudaFree(deviceParticles) );
 }
 
 template <typename ParticleType>
@@ -47,10 +44,9 @@ void ParticleSystem<ParticleType>::createVBO(){
 
 }
 
-/*
+
 template <typename ParticleType>
 void ParticleSystem<ParticleType>::setVAO() const{
-	printf("base\n");
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(0));
 	glEnableVertexAttribArray(1);
@@ -58,7 +54,6 @@ void ParticleSystem<ParticleType>::setVAO() const{
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*2));
 }
-*/
 
 
 template <typename ParticleType>
@@ -66,16 +61,15 @@ void ParticleSystem<ParticleType>::initCuda(){
 	deployGrid();
 
 	// cuda allocations
-	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceParticles, nParticle*sizeof(ParticleType)) );
+	// deviceParticles are mapped from VBO, so no allocations in this case
 
 	//register buffer to cuda
 	CUDA_SAFE_CALL( cudaGraphicsGLRegisterBuffer(&resource, VBO, cudaGraphicsRegisterFlagsNone) );
+	CUDA_SAFE_CALL( cudaGraphicsMapResources(1, &resource) );
 
 	//map dptr to VBO
 	size_t retSz;
-	ParticleType* dp;
-	CUDA_SAFE_CALL( cudaGraphicsMapResources(1, &resource) );
-	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dp, &retSz, resource) );
+	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&deviceParticles, &retSz, resource) );
 }
 
 template <typename ParticleType>
@@ -92,22 +86,17 @@ void ParticleSystem<ParticleType>::render(Mouse const &mouse){
 	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMouse, sz) );
 	CUDA_SAFE_CALL( cudaMemcpy(deviceMouse, &mouse, sz, cudaMemcpyHostToDevice) );
 
-	//map dptr to VBO
-	size_t retSz;
-	ParticleType *dp = nullptr;
-	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&dp, &retSz, resource) );
-
 	//run cuda kernel	
 	//if this is the first loop
 	if(!init){
 		init = true;
-		initKernel<<<block, grid>>>(dp, nParticle, *deviceMouse);
+		initKernel<<<grid, block>>>(deviceParticles, nParticle, *deviceMouse);
 		CUDA_ERROR_CHECKER;
 		CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 		return ;
 	}
 	else{
-		updateKernel<<<block, grid>>>(dp, *deviceMouse);
+		updateKernel<<<grid, block>>>(deviceParticles, nParticle, *deviceMouse);
 		CUDA_ERROR_CHECKER;
 		CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 	}
@@ -131,6 +120,7 @@ void ParticleSystem<ParticleType>::render(Mouse const &mouse){
 
 template <typename ParticleType>
 void ParticleSystem<ParticleType>::deployGrid(){
+	//no communications even between threads, so configuration method is not important.
 	unsigned int blockX = nParticle>MAX_THREAD? MAX_THREAD: static_cast<unsigned int>(nParticle);
 	block = {blockX, 1, 1};
 

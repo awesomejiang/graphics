@@ -18,9 +18,9 @@
 #include "shader.h"
 
 // for every concrete particle class, those function have to be overrided/specialized:
-// void Particle::setVAO
-// void initKernel(Particle*, int const &n, Mouse const &mouse);
-// void initKernel(Particle*, Mouse const &mouse);
+// void Particle::setVAO (optional)
+// void initKernel(Particle*, int n, Mouse const &mouse);
+// void initKernel(Particle*, int n, Mouse const &mouse);
 
 template <typename ParticleType>
 class ParticleSystem{
@@ -32,7 +32,7 @@ public:
 
 private:
 	void createVBO();
-	virtual void setVAO() const = 0;
+	virtual void setVAO() const;
 
 	void deployGrid();
 
@@ -44,5 +44,10 @@ private:
 	cudaGraphicsResource_t resource = 0;
 	dim3 block, grid;
 };
+
+__DEVICE__ inline int getIdx(){
+	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
+	return blockDim.x*grid + threadIdx.x;
+}
 
 #endif

@@ -11,7 +11,6 @@ struct SquareParticle{
 	vec2 pos;
 	vec2 vel;
 	vec4 color;
-	bool live = false;
 	curandState rand;
 };
 
@@ -25,6 +24,6 @@ public:
 
 
 __GLOBAL__ void initKernel(SquareParticle* p, int n, Mouse const &mouse);
-__GLOBAL__ void updateKernel(SquareParticle* p, Mouse const &mouse);
+__GLOBAL__ void updateKernel(SquareParticle* p, int n, Mouse const &mouse);
 
 #endif

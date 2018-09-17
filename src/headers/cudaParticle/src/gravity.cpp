@@ -24,7 +24,6 @@ __GLOBAL__ void initKernel(GravityParticle* p, int n, Mouse const &mouse){
 
 	GravityParticle &pr = p[idx];
 
-	pr.live = true;
 	curand_init(clock64(), idx, 0, &pr.rand);
 	pr.pos = {curand_uniform(&pr.rand) * 2.0f - 1.0f, -1.0f};
 	pr.vel = {0.0f, 0.0f};
@@ -32,8 +31,10 @@ __GLOBAL__ void initKernel(GravityParticle* p, int n, Mouse const &mouse){
 }
 
 
-__GLOBAL__ void updateKernel(GravityParticle* p, Mouse const &mouse){
+__GLOBAL__ void updateKernel(GravityParticle* p, int n, Mouse const &mouse){
 	auto idx = getIdx();
+	if(idx > n)
+		return ;
 
 	GravityParticle &pr = p[idx];
 

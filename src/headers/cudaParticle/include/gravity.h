@@ -11,7 +11,6 @@ struct GravityParticle{
 	vec2 pos;
 	vec2 vel;
 	vec4 color;
-	bool live = false;
 	curandState rand;
 };
 
@@ -24,6 +23,6 @@ public:
 };
 
 __GLOBAL__ void initKernel(GravityParticle* p, int n, Mouse const &mouse);
-__GLOBAL__ void updateKernel(GravityParticle* p, Mouse const &mouse);
+__GLOBAL__ void updateKernel(GravityParticle* p, int n, Mouse const &mouse);
 
 #endif

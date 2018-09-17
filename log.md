@@ -17,8 +17,11 @@
 
 09/09
 1. Finish glow version of lighting boundaries.       
-2. Start working on stencil version(much practical one).
+2. Start working on stencil version(much practical one).    
 
 09/10
-1. Card effects down.
-2. Start implementing pakc effects.
+1. Card effects done.   
+2. Start implementing pakc effects. 
+
+09/16
+1. FluidEngine done. Need more algorithm test.   
