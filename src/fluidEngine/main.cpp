@@ -13,7 +13,7 @@ int main(int argc, char** argv){
 	int w = atoi(argv[1]);
 	int h = atoi(argv[2]);
 
-	Scene scene(800, 600);
+	Scene scene(w, h);
 
 	Mouse mouse;
 
@@ -25,7 +25,7 @@ int main(int argc, char** argv){
 
 	while(!glfwWindowShouldClose(scene.window)){
 		ctr++;
-		if(ctr == 1000){
+		if(ctr == 10){
 			currTime = glfwGetTime();
 			printf("fps: %f\n", ctr/(currTime-prevTime));
 			ctr = 0;

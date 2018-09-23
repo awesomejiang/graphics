@@ -6,41 +6,21 @@
 
 #include <cuda.h>
 #include <cuda_gl_interop.h>
-#include <curand.h>
-#include <curand_kernel.h>
 
 #include "macros.h"
 #include "vec_float.h"
 #include "utility.h"
 #include "shader.h"
+#include "fluidcommon.h"
+#include "mathsolver.h"
 
 #include <stdexcept>
+#include <utility>
 
-
-
-#define dt 0.0001f
-#define rou 0.00001f
-
-struct FluidState{
-	vec2 pos;
-	vec2 vel;
-	float p;
-	float color;
-};
-
-
-//indexing helping class
-class Indexing{
-public:
-	__DEVICE__ Indexing(int const &w, int const &h);
-	__DEVICE__ int getIdx();
-	__DEVICE__ int getLeft();
-	__DEVICE__ int getRight();
-	__DEVICE__ int getTop();
-	__DEVICE__ int getBottom();
-
-	int w, h;
-};
+#define VBO_NUM 4
+#define t 0.1f
+#define niu 1.0f
+#define halfIteration 10 //"std::swap" involved, so iteration number must be even
 
 
 class Fluid{
@@ -51,25 +31,33 @@ public:
 	void render();
 
 private:
-	void deployGrid();
+	void initGL();
+	void initCuda();
 
-	FluidState *currState = nullptr, *starState = nullptr;
+	void colorSpread();
+	void solveMomentum();
+	void correctPressure();
+
+	vec2 *pos = nullptr, *oldV = nullptr, *currV = nullptr, *tempV = nullptr;
+	float *oldP = nullptr, *currP = nullptr, *div = nullptr;
+	vec3 *oldC = nullptr, *currC = nullptr, *tempC = nullptr;
+
 	Indexing *indexing = nullptr;
 	int width, height, size;
 	bool firstIteration = true;
 	dim3 block, grid;
+
 	Shader shader{"shaders/fluid.vs", "shaders/fluid.fs"};
-	unsigned int VBO, VAO;
-	cudaGraphicsResource_t resource = 0;
+	unsigned int VBO[VBO_NUM], VAO;
+	cudaGraphicsResource_t resource[VBO_NUM];// = {0, 0, 0, 0};
 };
 
 __GLOBAL__ void initIndexing(int w, int h, Indexing *indexing);
-__GLOBAL__ void initFluid(Indexing *indexing, FluidState *currState);
-__GLOBAL__ void advect(Indexing *indexing, FluidState *currState, FluidState *starState);
-__GLOBAL__ void diffusion(Indexing *indexing, FluidState *currState, FluidState *starState);
-__GLOBAL__ void div(Indexing *indexing, FluidState *currState, FluidState *starState);
-__GLOBAL__ void pressure(Indexing *indexing, FluidState *currState, FluidState *starState);
-__GLOBAL__ void swapPressure(Indexing *indexing, FluidState *currState, FluidState *starState);
-__GLOBAL__ void correction(Indexing *indexing, FluidState *currState, FluidState *starState);
+__GLOBAL__ void initFluid(Indexing *indexing, vec2* pos, vec2* v, float* p, vec3* c);
+
+__GLOBAL__ void force(Indexing *indexing, vec2 *vel, float dt);
+__GLOBAL__ void divBC(Indexing *indexing, float *div);
+__GLOBAL__ void velBC(Indexing *indexing, vec2 *vel);
+__GLOBAL__ void pressureBC(Indexing *indexing, float* p);
 
 #endif
