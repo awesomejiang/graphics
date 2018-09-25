@@ -1,15 +1,28 @@
 #ifndef MATHSOLVER_H
 #define MATHSOLVER_H
 
-#include "fluidcommon.h"
+#include "indexing.h"
 
-__GLOBAL__ void diffusionStep(Indexing *indexing, vec2 *currV, vec2 *tempV, vec2 *oldV, float dt, float niu);
-__GLOBAL__ void colorDiffusionStep(Indexing *indexing, vec3 *currC, vec3 *tempC, vec3 *oldC, float dt, float niu);
-__GLOBAL__ void advect(Indexing *indexing, vec2 *currV, vec2 *oldV, float dt);
-__GLOBAL__ void colorAdvect(Indexing *indexing, vec3 *currC, vec3 *oldC, vec2 *oldV, float dt);
-__GLOBAL__ void divergence(Indexing *indexing, float *div, vec2 *currV);
-__GLOBAL__ void pressureStep(Indexing *indexing, float *currP, float *oldP, float *div);
-__GLOBAL__ void correction(Indexing *indexing, vec2 *currV, float *currP);
+//(1-coef*laplace)q = rightHand
+//T should be vec2* or vec3*. coef denotes dt*niu(in fluid simulation case)
+template <typename T>
+__GLOBAL__ void diffusionStep(Indexing *indexing, T *out, T *temp, T *rightHand, float coef);
 
+//dq/dt = -(vel*div)q
+template <typename T>
+__GLOBAL__ void advect(Indexing *indexing, T *out, T *in, vec2 *vel, float dt);
+
+//out = div(in)
+__GLOBAL__ void divergence(Indexing *indexing, float *out, vec2 *in);
+
+//laplace(q) = rightHand
+__GLOBAL__ void poissonStep(Indexing *indexing, float *out, float *in, float *rightHand);
+
+//res -= grad(source)
+__GLOBAL__ void subGrad(Indexing *indexing, vec2 *res, float *source);
+
+//helper function
+template <typename T>
+__DEVICE__ T interpolate(Indexing *indexing, T *field, vec2 const &displace);
 
 #endif

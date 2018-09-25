@@ -49,6 +49,20 @@ void Fluid::initGL(){
 }
 
 void Fluid::initCuda(){
+	//deploy grid
+		//To reduce communication between blocks, set:
+		//1. 16*16 threads per block
+		//2. blocks as 2d array(easy for indexing)
+	block = {MAX_THREAD_X, MAX_THREAD_Y, 1};
+
+	unsigned int gridX = std::ceil(static_cast<float>(width)/MAX_THREAD_X);
+	unsigned int gridY = std::ceil(static_cast<float>(height)/MAX_THREAD_Y);
+
+	//assume grid x and y is under block limits(which is large enough for pixel drawing)
+	if(gridX > MAX_BLOCK_X || gridY > MAX_BLOCK_Y || gridX == 0 || gridY == 0)
+		throw std::runtime_error("Number of particles out of gpu limits.");
+	grid = {gridX, gridY};
+
 	//TODO: performance improve: shared memory + use ghost cell method
 	CUDA_SAFE_CALL( cudaMalloc((void**)&indexing, sizeof(Indexing)) );
 	CUDA_SAFE_CALL( cudaMalloc((void**)&div, size*sizeof(float)) );
@@ -68,19 +82,8 @@ void Fluid::initCuda(){
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&currP, &retSz, resource[2]) );
 	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&currC, &retSz, resource[3]) );
 
-	//deploy grid
-		//To reduce communication between blocks, set:
-		//1. 16*16 threads per block
-		//2. blocks as 2d array(easy for indexing)
-	block = {MAX_THREAD_X, MAX_THREAD_Y, 1};
-
-	unsigned int gridX = std::ceil(static_cast<float>(width)/MAX_THREAD_X);
-	unsigned int gridY = std::ceil(static_cast<float>(height)/MAX_THREAD_Y);
-
-	//assume grid x and y is under block limits(which is large enough for pixel drawing)
-	if(gridX > MAX_BLOCK_X || gridY > MAX_BLOCK_Y || gridX == 0 || gridY == 0)
-		throw std::runtime_error("Number of particles out of gpu limits.");
-	grid = {gridX, gridY};
+	initIndexing<<<grid, block>>>(width, height, indexing);
+	initFluid<<<grid, block>>>(indexing, pos, currV, currP, currC);
 }
 
 void Fluid::render(){
@@ -88,8 +91,6 @@ void Fluid::render(){
 	if(firstIteration == true){
 		initGL();
 		initCuda();
-		initIndexing<<<grid, block>>>(width, height, indexing);
-		initFluid<<<grid, block>>>(indexing, pos, currV, currP, currC);
 		firstIteration = false;
 	}
 
@@ -119,14 +120,14 @@ void Fluid::colorSpread(){
 	std::swap(oldC, currC);
 	//implement gauss siedel solver for diffusion term
 	CUDA_SAFE_CALL( cudaMemcpy(tempC, oldC, size*sizeof(vec3), cudaMemcpyDeviceToDevice) );
-	for(auto i=0; i<halfIteration*2; ++i){
-		colorDiffusionStep<<<grid, block>>>(indexing, currC, tempC, oldC, t, 0.0);
+	for(auto i=0; i<HALFITERATION*2; ++i){
+		diffusionStep<<<grid, block>>>(indexing, currC, tempC, oldC, DT*NIU*10);
 		std::swap(tempC, currC);
 	}
 	//swap intermediate result into oldC
 	std::swap(oldC, currC);
 	//call backtrace method for advection term
-	colorAdvect<<<grid, block>>>(indexing, currC, oldC, currV, t);
+	advect<<<grid, block>>>(indexing, currC, oldC, currV, DT);
 }
 
 void Fluid::solveMomentum(){
@@ -134,17 +135,18 @@ void Fluid::solveMomentum(){
 	std::swap(oldV, currV);
 	//implement gauss siedel solver for diffusion term
 	CUDA_SAFE_CALL( cudaMemcpy(tempV, oldV, size*sizeof(vec2), cudaMemcpyDeviceToDevice) );
-	for(auto i=0; i<halfIteration*2; ++i){
-		diffusionStep<<<grid, block>>>(indexing, currV, tempV, oldV, t, niu);
+	for(auto i=0; i<HALFITERATION*2; ++i){
+		diffusionStep<<<grid, block>>>(indexing, currV, tempV, oldV, DT*NIU);
 		velBC<<<grid, block>>>(indexing, currV);
 		std::swap(tempV, currV);
 	}
+	correctPressure();
 	//swap intermediate result into oldV
 	std::swap(oldV, currV);
 	//call backtrace method for advection term
-	advect<<<grid, block>>>(indexing, currV, oldV, t);
+	advect<<<grid, block>>>(indexing, currV, oldV, oldV, DT);
 	//add force term
-	force<<<grid, block>>>(indexing, currV, t);
+	//force<<<grid, block>>>(indexing, currV, DT);
 	//correct for BC
 	velBC<<<grid, block>>>(indexing, currV);
 }
@@ -155,15 +157,15 @@ void Fluid::correctPressure(){
 	//call Jacobi solver for pressure poisson equation
 	divergence<<<grid, block>>>(indexing, div, currV);
 	divBC<<<grid, block>>>(indexing, div);
-	for(auto i=0; i<halfIteration*2; ++i){
-		pressureStep<<<grid, block>>>(indexing, currP, oldP, div);
+	for(auto i=0; i<HALFITERATION*2; ++i){
+		poissonStep<<<grid, block>>>(indexing, currP, oldP, div);
 		pressureBC<<<grid, block>>>(indexing, currP);
 		//CUDA_SAFE_CALL( cudaMemcpy(oldP, currP, size*sizeof(float), cudaMemcpyDeviceToDevice) );
 		std::swap(oldP, currP);
 	}
 
 	//substract grad(P) from former intermiedate velocity
-	correction<<<grid, block>>>(indexing, currV, currP);
+	subGrad<<<grid, block>>>(indexing, currV, currP);
 	velBC<<<grid, block>>>(indexing, currV);
 }
 
@@ -181,17 +183,16 @@ __GLOBAL__ void initFluid(Indexing *indexing, vec2* pos, vec2* v, float* p, vec3
 
 	auto w = indexing->w, h = indexing->h;
 	auto x = static_cast<float>(idx%w)/w * 2.0f - 1.0f;
-	auto y = -static_cast<float>(idx/w)/h * 2.0f + 1.0f;
+	auto y = static_cast<float>(idx/w)/h * 2.0f - 1.0f;
 	pos[idx] = {x, y};
 	v[idx] = {0.0f, 0.0f};
 	p[idx] = 0.0f;
 	c[idx] = {0.0f, 0.0f, 0.0f};
-	if(fabs(x)<0.1f && fabs(y-0.5)<0.1f){
+	if(fabs(x)<0.1f && fabs(y)<0.1f){
 		c[idx] = {1.0f, 0.0f, 0.0f};
-		v[idx] = {0.0f, -50.0f};
 	}
-//	if(fabs(x)<0.1f && fabs(y)<0.1)
-//		v[idx] = {0.0f, 1.0f};
+	if(fabs(x)<0.1f && fabs(y)<0.1f)
+		v[idx] = {x*100, y*100};
 }
 
 
@@ -209,23 +210,24 @@ __GLOBAL__ void divBC(Indexing *indexing, float *div){
 	if(idx == -1)
 		return ;
 /*
-	if(indexing->isLeftBoundary())
-		vel[idx][0] = -vel[indexing->getRight()][0];
-	if(indexing->isRightBoundary())
-		vel[idx][0] = -vel[indexing->getLeft()][0];
-	if(indexing->isTopBoundary())
-		vel[idx][1] = -vel[indexing->getBottom()][1];
-	if(indexing->isBottomBoundary())
-		vel[idx][1] = -vel[indexing->getTop()][1];
+	if(indexing->isLeftBoundary(idx))
+		div[idx] = -div[indexing->getRight(idx)];
+	if(indexing->isRightBoundary(idx))
+		div[idx] = -div[indexing->getLeft(idx)];
+	if(indexing->isTopBoundary(idx))
+		div[idx] = -div[indexing->getBottom(idx)];
+	if(indexing->isBottomBoundary(idx))
+		div[idx] = -div[indexing->getTop(idx)];
 */
-	if(indexing->isLeftBoundary())
+	if(indexing->isLeftBoundary(idx))
 		div[idx] = 0.0f;
-	if(indexing->isRightBoundary())
+	if(indexing->isRightBoundary(idx))
 		div[idx] = 0.0f;
-	if(indexing->isTopBoundary())
+	if(indexing->isTopBoundary(idx))
 		div[idx] = 0.0f;
-	if(indexing->isBottomBoundary())
+	if(indexing->isBottomBoundary(idx))
 		div[idx] = 0.0f;
+
 }
 
 
@@ -235,23 +237,24 @@ __GLOBAL__ void velBC(Indexing *indexing, vec2 *vel){
 	if(idx == -1)
 		return ;
 /*
-	if(indexing->isLeftBoundary())
-		vel[idx][0] = -vel[indexing->getRight()][0];
-	if(indexing->isRightBoundary())
-		vel[idx][0] = -vel[indexing->getLeft()][0];
-	if(indexing->isTopBoundary())
-		vel[idx][1] = -vel[indexing->getBottom()][1];
-	if(indexing->isBottomBoundary())
-		vel[idx][1] = -vel[indexing->getTop()][1];
+	if(indexing->isLeftBoundary(idx))
+		vel[idx][0] = -vel[indexing->getRight(idx)][0];
+	if(indexing->isRightBoundary(idx))
+		vel[idx][0] = -vel[indexing->getLeft(idx)][0];
+	if(indexing->isTopBoundary(idx))
+		vel[idx][1] = -vel[indexing->getBottom(idx)][1];
+	if(indexing->isBottomBoundary(idx))
+		vel[idx][1] = -vel[indexing->getTop(idx)][1];
 */
-	if(indexing->isLeftBoundary())
+	if(indexing->isLeftBoundary(idx))
 		vel[idx][0] = 0.0f;
-	if(indexing->isRightBoundary())
+	if(indexing->isRightBoundary(idx))
 		vel[idx][0] = 0.0f;
-	if(indexing->isTopBoundary())
+	if(indexing->isTopBoundary(idx))
 		vel[idx][1] = 0.0f;
-	if(indexing->isBottomBoundary())
+	if(indexing->isBottomBoundary(idx))
 		vel[idx][1] = 0.0f;
+
 }
 
 //2nd order BC d2p/dn2 = 0;
@@ -260,22 +263,22 @@ __GLOBAL__ void pressureBC(Indexing *indexing, float* p){
 	if(idx == -1)
 		return ;
 
-	if(indexing->isLeftBoundary())
-		p[idx] = p[indexing->getRight()];
-	if(indexing->isRightBoundary())
-		p[idx] = p[indexing->getLeft()];
-	if(indexing->isTopBoundary())
-		p[idx] = p[indexing->getBottom()];
-	if(indexing->isBottomBoundary())
-		p[idx] = p[indexing->getTop()];
+	if(indexing->isLeftBoundary(idx))
+		p[idx] = p[indexing->getRight(idx)];
+	if(indexing->isRightBoundary(idx))
+		p[idx] = p[indexing->getLeft(idx)];
+	if(indexing->isTopBoundary(idx))
+		p[idx] = p[indexing->getBottom(idx)];
+	if(indexing->isBottomBoundary(idx))
+		p[idx] = p[indexing->getTop(idx)];
 /*
-	if(indexing->isLeftBoundary())
+	if(indexing->isLeftBoundary(idx))
 		p[idx] = 0.0f;
-	if(indexing->isRightBoundary())
+	if(indexing->isRightBoundary(idx))
 		p[idx] = 0.0f;
-	if(indexing->isTopBoundary())
+	if(indexing->isTopBoundary(idx))
 		p[idx] = 0.0f;
-	if(indexing->isBottomBoundary())
+	if(indexing->isBottomBoundary(idx))
 		p[idx] = 0.0f;
 */
 }

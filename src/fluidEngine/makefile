@@ -7,7 +7,7 @@ PROGS = main
 
 PS = click tailing square gravity
 UTIL = utility vec_float
-FLUID = fluidcommon mathsolver fluid
+FLUID = indexing mathsolver fluid
 GL = framebuffer mesh texture shader scene
 
 PS_PATH = $(HEADERS)/cudaParticle

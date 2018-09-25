@@ -11,16 +11,16 @@
 #include "vec_float.h"
 #include "utility.h"
 #include "shader.h"
-#include "fluidcommon.h"
-#include "mathsolver.h"
+#include "indexing.h"
+#include "mathsolver.hpp"
 
 #include <stdexcept>
 #include <utility>
 
 #define VBO_NUM 4
-#define t 0.1f
-#define niu 1.0f
-#define halfIteration 10 //"std::swap" involved, so iteration number must be even
+#define DT 1.0f
+#define NIU 10.0f
+#define HALFITERATION 10 //"std::swap" involved, so iteration number must be even
 
 
 class Fluid{
@@ -49,7 +49,7 @@ private:
 
 	Shader shader{"shaders/fluid.vs", "shaders/fluid.fs"};
 	unsigned int VBO[VBO_NUM], VAO;
-	cudaGraphicsResource_t resource[VBO_NUM];// = {0, 0, 0, 0};
+	cudaGraphicsResource_t resource[VBO_NUM] = {0, 0, 0, 0};
 };
 
 __GLOBAL__ void initIndexing(int w, int h, Indexing *indexing);
