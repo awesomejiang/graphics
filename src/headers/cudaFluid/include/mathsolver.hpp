@@ -45,3 +45,68 @@ __DEVICE__ T interpolate(Indexing *indexing, T *field, vec2 const &displace){
 
 	return (1.0f-x)*(1.0f-y)*f00 + x*(1.0f-y)*f10 + (1.0f-x)*y*f01 + x*y*f11;
 }
+
+
+template <>
+__GLOBAL__ void dirichletBC(Indexing *indexing, float *field){
+	auto idx = indexing->getIdx();
+	if(idx == -1)
+		return ;
+
+	if(indexing->isLeftBoundary(idx))
+		field[idx] = 0.0f;
+	if(indexing->isRightBoundary(idx))
+		field[idx] = 0.0f;
+	if(indexing->isTopBoundary(idx))
+		field[idx] = 0.0f;
+	if(indexing->isBottomBoundary(idx))
+		field[idx] = 0.0f;
+}
+
+template <>
+__GLOBAL__ void dirichletBC(Indexing *indexing, vec2 *field){
+	auto idx = indexing->getIdx();
+	if(idx == -1)
+		return ;
+
+	if(indexing->isLeftBoundary(idx))
+		field[idx][0] = 0.0f;
+	if(indexing->isRightBoundary(idx))
+		field[idx][0] = 0.0f;
+	if(indexing->isTopBoundary(idx))
+		field[idx][1] = 0.0f;
+	if(indexing->isBottomBoundary(idx))
+		field[idx][1] = 0.0f;
+}
+
+template <>
+__GLOBAL__ void neumannBC(Indexing *indexing, float *field){
+	auto idx = indexing->getIdx();
+	if(idx == -1)
+		return ;
+
+	if(indexing->isLeftBoundary(idx))
+		field[idx] = field[indexing->getRight(idx)];
+	if(indexing->isRightBoundary(idx))
+		field[idx] = field[indexing->getLeft(idx)];
+	if(indexing->isTopBoundary(idx))
+		field[idx] = field[indexing->getBottom(idx)];
+	if(indexing->isBottomBoundary(idx))
+		field[idx] = field[indexing->getTop(idx)];
+}
+
+template <>
+__GLOBAL__ void neumannBC(Indexing *indexing, vec2 *field){
+	auto idx = indexing->getIdx();
+	if(idx == -1)
+		return ;
+
+	if(indexing->isLeftBoundary(idx))
+		field[idx][0] = field[indexing->getRight(idx)][0];
+	if(indexing->isRightBoundary(idx))
+		field[idx][0] = field[indexing->getLeft(idx)][0];
+	if(indexing->isTopBoundary(idx))
+		field[idx][1] = field[indexing->getBottom(idx)][1];
+	if(indexing->isBottomBoundary(idx))
+		field[idx][1] = field[indexing->getTop(idx)][1];
+}

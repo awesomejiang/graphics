@@ -12,12 +12,13 @@ void __cudaErrorChecker(const char *file, const int line){
 }
 
 void getMouse(Mouse &mouse, Scene const &scene){
-	//if click on card, flip it
 	double mouseX, mouseY;
 	glfwGetCursorPos(scene.window, &mouseX, &mouseY);
 	mouseX = mouseX/scene.width * 2 - 1.0;
-	mouseY = -mouseY/scene.height * 2 + 1.0; //mouseY is bottom down
-	mouse.pos = {static_cast<float>(mouseX), static_cast<float>(mouseY)};
+	mouseY = -mouseY/scene.height * 2 + 1.0; //mouseY is bottom down	
+	vec2 newPos = {static_cast<float>(mouseX), static_cast<float>(mouseY)};
+	mouse.dir = norm(newPos - mouse.pos);
+	mouse.pos = newPos;
 
 	mouse.pressed = glfwGetMouseButton(scene.window, GLFW_MOUSE_BUTTON_LEFT);
 

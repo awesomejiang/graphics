@@ -12,6 +12,7 @@
 class Indexing{
 public:
 	__DEVICE__ Indexing(int const &w, int const &h);
+	__DEVICE__ vec2 getPos();
 	__DEVICE__ int getIdx();
 	__DEVICE__ int getLeft(int const &idx);
 	__DEVICE__ int getRight(int const &idx);

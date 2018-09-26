@@ -14,9 +14,8 @@ void main(){
 	fragColor = vec4(0.0, 0.0, 0.0, 1.0);
 
 	float x = fs_in.vel.x , y = fs_in.vel.y;
-//	fragColor += vec4(0.0, x*x+y*y, 0.0, 1.0);
-	fragColor += vec4(0.0, x*x, y*y, 1.0);
-
+//	fragColor += vec4(0.0, x, y, 1.0);
+//	fragColor += vec4(fs_in.pressure, 0.0, 0.0, 1.0);
 //	if(x<0.0)
 //		fragColor.x = 1.0;
 //	else

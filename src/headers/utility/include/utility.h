@@ -25,6 +25,7 @@ void __cudaErrorChecker(const char *file, const int line);
 //get mouse position on scene
 struct Mouse{
 	vec2 pos;
+	vec2 dir;
 	bool pressed = false;
 	bool firstClicked = false;
 };

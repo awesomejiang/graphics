@@ -2,6 +2,12 @@
 
 __DEVICE__ Indexing::Indexing(int const &w, int const &h): w{w}, h{h} {}
 
+__DEVICE__ vec2 Indexing::getPos(){
+	auto x = blockDim.x*blockIdx.x + threadIdx.x;
+	auto y = blockDim.y*blockIdx.y + threadIdx.y;
+	return vec2{static_cast<float>(x)/w*2.0f-1.0f, static_cast<float>(y)/h*2.0f-1.0f};
+}
+
 __DEVICE__ int Indexing::getIdx(){
 	auto x = blockDim.x*blockIdx.x + threadIdx.x;
 	auto y = blockDim.y*blockIdx.y + threadIdx.y;
@@ -10,6 +16,7 @@ __DEVICE__ int Indexing::getIdx(){
 	else
 		return -1;
 }
+
 
 __DEVICE__ int Indexing::getLeft(int const &idx){
 	auto x = idx%w;

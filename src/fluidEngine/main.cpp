@@ -21,15 +21,20 @@ int main(int argc, char** argv){
 
 	float prevTime = glfwGetTime();
 	float currTime;
+	float sumTime = 0;
 	int ctr = 0;
 
 	while(!glfwWindowShouldClose(scene.window)){
+		currTime = glfwGetTime();
+		float dt = currTime - prevTime;
+		prevTime = currTime;
+
+		sumTime += dt;
 		ctr++;
 		if(ctr == 10){
-			currTime = glfwGetTime();
-			printf("fps: %f\n", ctr/(currTime-prevTime));
+			printf("fps: %f\n", ctr/(sumTime));
 			ctr = 0;
-			prevTime = currTime;
+			sumTime = 0.0f;
 		}
 
 		scene.processInput();
@@ -41,7 +46,7 @@ int main(int argc, char** argv){
     	glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     	//draw
-		fluid.render();
+		fluid.render(mouse, dt);
 
     	//check status
     	glfwSwapBuffers(scene.window);

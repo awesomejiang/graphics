@@ -1,5 +1,6 @@
 #include "fluid.h"
-#include <unistd.h>
+#include "mathsolver.hpp"
+
 #define MAX_THREAD_X 16
 #define MAX_THREAD_Y 16
 #define MAX_BLOCK_X 65535ll
@@ -23,6 +24,8 @@ Fluid::~Fluid(){
 		CUDA_SAFE_CALL( cudaFree(oldP) );
 		CUDA_SAFE_CALL( cudaFree(oldC) );
 		CUDA_SAFE_CALL( cudaFree(tempC) );
+
+		CUDA_SAFE_CALL( cudaFree(deviceMouse) );
 	}
 }
 
@@ -86,7 +89,7 @@ void Fluid::initCuda(){
 	initFluid<<<grid, block>>>(indexing, pos, currV, currP, currC);
 }
 
-void Fluid::render(){
+void Fluid::render(Mouse const &mouse, float const &t){
 	//init
 	if(firstIteration == true){
 		initGL();
@@ -94,12 +97,21 @@ void Fluid::render(){
 		firstIteration = false;
 	}
 
-	//do math here
-	colorSpread();
+	//set mouse position to device
+	deviceMouse = nullptr;
+	auto sz = sizeof(Mouse);
+	CUDA_SAFE_CALL( cudaMalloc((void**)&deviceMouse, sz) );
+	CUDA_SAFE_CALL( cudaMemcpy(deviceMouse, &mouse, sz, cudaMemcpyHostToDevice) );
 
+	//update dt
+	dt = t;
+
+	//do math here
 	solveMomentum();
 
 	correctPressure();
+
+	colorSpread();
 
 	//draw
 	shader.use();
@@ -112,43 +124,29 @@ void Fluid::render(){
 	glBindVertexArray(0);
 
 	//glDisable(GL_BLEND);
-	usleep(100000);
-}
-
-void Fluid::colorSpread(){
-	//swap data from last step to oldV
-	std::swap(oldC, currC);
-	//implement gauss siedel solver for diffusion term
-	CUDA_SAFE_CALL( cudaMemcpy(tempC, oldC, size*sizeof(vec3), cudaMemcpyDeviceToDevice) );
-	for(auto i=0; i<HALFITERATION*2; ++i){
-		diffusionStep<<<grid, block>>>(indexing, currC, tempC, oldC, DT*NIU*10);
-		std::swap(tempC, currC);
-	}
-	//swap intermediate result into oldC
-	std::swap(oldC, currC);
-	//call backtrace method for advection term
-	advect<<<grid, block>>>(indexing, currC, oldC, currV, DT);
+	//usleep(100000);
 }
 
 void Fluid::solveMomentum(){
+	//add force term
+	addForce<<<grid, block>>>(indexing, deviceMouse, currV, dt);
+
 	//swap data from last step to oldV
+	std::swap(oldV, currV);
+	//call backtrace method for advection term
+	advect<<<grid, block>>>(indexing, currV, oldV, oldV, dt);
+	//correct for BC
+	dirichletBC<<<grid, block>>>(indexing, currV);
+
+	//swap intermediate result into oldV
 	std::swap(oldV, currV);
 	//implement gauss siedel solver for diffusion term
 	CUDA_SAFE_CALL( cudaMemcpy(tempV, oldV, size*sizeof(vec2), cudaMemcpyDeviceToDevice) );
 	for(auto i=0; i<HALFITERATION*2; ++i){
-		diffusionStep<<<grid, block>>>(indexing, currV, tempV, oldV, DT*NIU);
-		velBC<<<grid, block>>>(indexing, currV);
+		diffusionStep<<<grid, block>>>(indexing, currV, tempV, oldV, dt*NIU);
+		dirichletBC<<<grid, block>>>(indexing, currV);
 		std::swap(tempV, currV);
 	}
-	correctPressure();
-	//swap intermediate result into oldV
-	std::swap(oldV, currV);
-	//call backtrace method for advection term
-	advect<<<grid, block>>>(indexing, currV, oldV, oldV, DT);
-	//add force term
-	//force<<<grid, block>>>(indexing, currV, DT);
-	//correct for BC
-	velBC<<<grid, block>>>(indexing, currV);
 }
 
 void Fluid::correctPressure(){
@@ -156,17 +154,36 @@ void Fluid::correctPressure(){
 	CUDA_SAFE_CALL( cudaMemcpy(oldP, currP, size*sizeof(float), cudaMemcpyDeviceToDevice) );
 	//call Jacobi solver for pressure poisson equation
 	divergence<<<grid, block>>>(indexing, div, currV);
-	divBC<<<grid, block>>>(indexing, div);
+	dirichletBC<<<grid, block>>>(indexing, div);
 	for(auto i=0; i<HALFITERATION*2; ++i){
 		poissonStep<<<grid, block>>>(indexing, currP, oldP, div);
-		pressureBC<<<grid, block>>>(indexing, currP);
+		neumannBC<<<grid, block>>>(indexing, currP);
 		//CUDA_SAFE_CALL( cudaMemcpy(oldP, currP, size*sizeof(float), cudaMemcpyDeviceToDevice) );
 		std::swap(oldP, currP);
 	}
 
 	//substract grad(P) from former intermiedate velocity
 	subGrad<<<grid, block>>>(indexing, currV, currP);
-	velBC<<<grid, block>>>(indexing, currV);
+	dirichletBC<<<grid, block>>>(indexing, currV);
+}
+
+void Fluid::colorSpread(){
+	//add source term
+	addDye<<<grid, block>>>(indexing, deviceMouse, currC, dt);
+
+	//swap data from last step to oldV
+	std::swap(oldC, currC);
+	//call backtrace method for advection term
+	advect<<<grid, block>>>(indexing, currC, oldC, currV, dt);
+
+	//swap intermediate result into oldC
+	std::swap(oldC, currC);
+	//implement gauss siedel solver for diffusion term
+	CUDA_SAFE_CALL( cudaMemcpy(tempC, oldC, size*sizeof(vec3), cudaMemcpyDeviceToDevice) );
+	for(auto i=0; i<HALFITERATION*2; ++i){
+		diffusionStep<<<grid, block>>>(indexing, currC, tempC, oldC, dt*NIU);
+		std::swap(tempC, currC);
+	}
 }
 
 
@@ -181,104 +198,33 @@ __GLOBAL__ void initFluid(Indexing *indexing, vec2* pos, vec2* v, float* p, vec3
 	if(idx == -1)
 		return ;
 
-	auto w = indexing->w, h = indexing->h;
-	auto x = static_cast<float>(idx%w)/w * 2.0f - 1.0f;
-	auto y = static_cast<float>(idx/w)/h * 2.0f - 1.0f;
-	pos[idx] = {x, y};
+	pos[idx] = indexing->getPos();
 	v[idx] = {0.0f, 0.0f};
 	p[idx] = 0.0f;
-	c[idx] = {0.0f, 0.0f, 0.0f};
-	if(fabs(x)<0.1f && fabs(y)<0.1f){
-		c[idx] = {1.0f, 0.0f, 0.0f};
-	}
-	if(fabs(x)<0.1f && fabs(y)<0.1f)
-		v[idx] = {x*100, y*100};
+	c[idx] = {0.0f, 0.0f, 0.0f}; 
 }
 
 
 // out force source
-__GLOBAL__ void force(Indexing *indexing, vec2 *vel, float dt){
+__GLOBAL__ void addForce(Indexing *indexing, Mouse *mouse, vec2 *vel, float dt){
 	auto idx = indexing->getIdx();
 	if(idx == -1)
 		return ;
-	//vel[idx] += vec2{0.0f, -0.1f*dt};
+
+	auto dist = indexing->getPos() - mouse->pos;
+	if(mouse->pressed && length(dist) < 0.3f)
+		vel[idx] += norm(dist)*1000.0f*dt;
 }
 
-
-__GLOBAL__ void divBC(Indexing *indexing, float *div){
-	auto idx = indexing->getIdx();
-	if(idx == -1)
-		return ;
-/*
-	if(indexing->isLeftBoundary(idx))
-		div[idx] = -div[indexing->getRight(idx)];
-	if(indexing->isRightBoundary(idx))
-		div[idx] = -div[indexing->getLeft(idx)];
-	if(indexing->isTopBoundary(idx))
-		div[idx] = -div[indexing->getBottom(idx)];
-	if(indexing->isBottomBoundary(idx))
-		div[idx] = -div[indexing->getTop(idx)];
-*/
-	if(indexing->isLeftBoundary(idx))
-		div[idx] = 0.0f;
-	if(indexing->isRightBoundary(idx))
-		div[idx] = 0.0f;
-	if(indexing->isTopBoundary(idx))
-		div[idx] = 0.0f;
-	if(indexing->isBottomBoundary(idx))
-		div[idx] = 0.0f;
-
-}
-
-
-//no gradient BC dv/dn = 0
-__GLOBAL__ void velBC(Indexing *indexing, vec2 *vel){
-	auto idx = indexing->getIdx();
-	if(idx == -1)
-		return ;
-/*
-	if(indexing->isLeftBoundary(idx))
-		vel[idx][0] = -vel[indexing->getRight(idx)][0];
-	if(indexing->isRightBoundary(idx))
-		vel[idx][0] = -vel[indexing->getLeft(idx)][0];
-	if(indexing->isTopBoundary(idx))
-		vel[idx][1] = -vel[indexing->getBottom(idx)][1];
-	if(indexing->isBottomBoundary(idx))
-		vel[idx][1] = -vel[indexing->getTop(idx)][1];
-*/
-	if(indexing->isLeftBoundary(idx))
-		vel[idx][0] = 0.0f;
-	if(indexing->isRightBoundary(idx))
-		vel[idx][0] = 0.0f;
-	if(indexing->isTopBoundary(idx))
-		vel[idx][1] = 0.0f;
-	if(indexing->isBottomBoundary(idx))
-		vel[idx][1] = 0.0f;
-
-}
-
-//2nd order BC d2p/dn2 = 0;
-__GLOBAL__ void pressureBC(Indexing *indexing, float* p){
+__GLOBAL__ void addDye(Indexing *indexing, Mouse *mouse, vec3 *color, float dt){
 	auto idx = indexing->getIdx();
 	if(idx == -1)
 		return ;
 
-	if(indexing->isLeftBoundary(idx))
-		p[idx] = p[indexing->getRight(idx)];
-	if(indexing->isRightBoundary(idx))
-		p[idx] = p[indexing->getLeft(idx)];
-	if(indexing->isTopBoundary(idx))
-		p[idx] = p[indexing->getBottom(idx)];
-	if(indexing->isBottomBoundary(idx))
-		p[idx] = p[indexing->getTop(idx)];
-/*
-	if(indexing->isLeftBoundary(idx))
-		p[idx] = 0.0f;
-	if(indexing->isRightBoundary(idx))
-		p[idx] = 0.0f;
-	if(indexing->isTopBoundary(idx))
-		p[idx] = 0.0f;
-	if(indexing->isBottomBoundary(idx))
-		p[idx] = 0.0f;
-*/
+	//add dye, color based on move direction
+	//vec3 dye{mouse->dir[0], mouse->dir[1], 0.0f};
+	vec3 dye{1.0f, 0.5f, 0.0f};
+	auto dist = indexing->getPos() - mouse->pos;
+	if(mouse->pressed && length(dist) < 0.1f)
+		color[idx] += dye*2.0f*dt;
 }

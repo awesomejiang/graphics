@@ -12,14 +12,12 @@
 #include "utility.h"
 #include "shader.h"
 #include "indexing.h"
-#include "mathsolver.hpp"
 
 #include <stdexcept>
 #include <utility>
 
 #define VBO_NUM 4
-#define DT 1.0f
-#define NIU 10.0f
+#define NIU 0.01f
 #define HALFITERATION 10 //"std::swap" involved, so iteration number must be even
 
 
@@ -28,15 +26,15 @@ public:
 	Fluid(int const &width = 800, int const &height = 600);
 	~Fluid();
 
-	void render();
+	void render(Mouse const &mouse, float const &t);
 
 private:
 	void initGL();
 	void initCuda();
 
-	void colorSpread();
 	void solveMomentum();
 	void correctPressure();
+	void colorSpread();
 
 	vec2 *pos = nullptr, *oldV = nullptr, *currV = nullptr, *tempV = nullptr;
 	float *oldP = nullptr, *currP = nullptr, *div = nullptr;
@@ -47,6 +45,9 @@ private:
 	bool firstIteration = true;
 	dim3 block, grid;
 
+	Mouse* deviceMouse;
+	float dt;
+
 	Shader shader{"shaders/fluid.vs", "shaders/fluid.fs"};
 	unsigned int VBO[VBO_NUM], VAO;
 	cudaGraphicsResource_t resource[VBO_NUM] = {0, 0, 0, 0};
@@ -55,9 +56,7 @@ private:
 __GLOBAL__ void initIndexing(int w, int h, Indexing *indexing);
 __GLOBAL__ void initFluid(Indexing *indexing, vec2* pos, vec2* v, float* p, vec3* c);
 
-__GLOBAL__ void force(Indexing *indexing, vec2 *vel, float dt);
-__GLOBAL__ void divBC(Indexing *indexing, float *div);
-__GLOBAL__ void velBC(Indexing *indexing, vec2 *vel);
-__GLOBAL__ void pressureBC(Indexing *indexing, float* p);
+__GLOBAL__ void addForce(Indexing *indexing, Mouse *mouse, vec2 *vel, float dt);
+__GLOBAL__ void addDye(Indexing *indexing, Mouse *mouse, vec3 *color, float dt);
 
 #endif

@@ -21,8 +21,17 @@ __GLOBAL__ void poissonStep(Indexing *indexing, float *out, float *in, float *ri
 //res -= grad(source)
 __GLOBAL__ void subGrad(Indexing *indexing, vec2 *res, float *source);
 
+//dirichlet boundary condition
+template <typename T>
+__GLOBAL__ void dirichletBC(Indexing *indexing, T *field);
+
+//neumann boundary condition
+template <typename T>
+__GLOBAL__ void neumannBC(Indexing *indexing, T *field);
+
 //helper function
 template <typename T>
 __DEVICE__ T interpolate(Indexing *indexing, T *field, vec2 const &displace);
+
 
 #endif
