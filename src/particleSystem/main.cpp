@@ -6,26 +6,27 @@
 
 
 #include "utility.h"
-#include "scene.h"
+#include "window.h"
 #include "gravity.h"
 #include "square.h"
 #include "tailing.h"
 #include "click.h"
+#include "fluid.h"
 
 int main(int argc, char** argv){
 	long long int n = atoll(argv[1]);
 
-	Scene scene(800, 600);
+	Window window(800, 800);
 
 	Mouse mouse;
 
-	Click ps(n);
+	Fluid ps(n);
 
 	float prevTime = glfwGetTime();
 	float currTime;
 	int ctr = 0;
 
-	while(!glfwWindowShouldClose(scene.window)){
+	while(!glfwWindowShouldClose(window.window)){
 		ctr++;
 		if(ctr == 1000){
 			currTime = glfwGetTime();
@@ -34,11 +35,11 @@ int main(int argc, char** argv){
 			prevTime = currTime;
 		}
 
-		scene.processInput();
-		getMouse(mouse, scene);
+		window.processInput();
+		getMouse(mouse, window);
 		
 		//clear output
-		glViewport(0, 0, scene.width, scene.height);
+		glViewport(0, 0, window.width, window.height);
     	glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
     	glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv){
 		ps.render(mouse);
 
     	//check status
-    	glfwSwapBuffers(scene.window);
+    	glfwSwapBuffers(window.window);
     	glfwPollEvents();
 	}
 }

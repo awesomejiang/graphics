@@ -27,7 +27,7 @@ public:
 
 	void setTexture(Texture const &texture);
 
-	void draw(Shader const &shader) const;
+	void draw(Shader const &shader, GLenum const &mode = GL_TRIANGLES) const;
 
 	unsigned int getTexID(int index) const;
 	std::string getTexName(int index) const;

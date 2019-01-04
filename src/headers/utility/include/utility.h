@@ -5,7 +5,7 @@
 #include <cstdio>
 
 #include "macros.h"
-#include "scene.h"
+#include "window.h"
 #include "vec_float.h"
 
 // cuda related helper functions/macros
@@ -14,6 +14,16 @@
 void __cudaSafeCall(cudaError error, const char *file, const int line);
 
 void __cudaErrorChecker(const char *file, const int line);
+
+#define MAX_THREAD 256
+#define MAX_BLOCK_X 65535ll
+#define MAX_BLOCK_Y 65535ll
+#define MAX_BLOCK_Z 65535ll
+
+__DEVICE__ inline int getIdx(){
+	int grid = gridDim.x*gridDim.y*blockIdx.z + gridDim.x*blockIdx.y + blockIdx.x;
+	return blockDim.x*grid + threadIdx.x;
+}
 
 #endif
 
@@ -30,7 +40,7 @@ struct Mouse{
 	bool firstClicked = false;
 };
 
-void getMouse(Mouse &mouse, Scene const &scene);
+void getMouse(Mouse &mouse, Window const &window);
 
 
 //ugly hack for:

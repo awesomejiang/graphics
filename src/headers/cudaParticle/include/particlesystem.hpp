@@ -11,7 +11,7 @@
 
 template <typename ParticleType>
 ParticleSystem<ParticleType>::ParticleSystem(int const &n, Shader const &shader)
-: nParticle(n),
+: nParticle(n/MAX_THREAD*MAX_THREAD),
   shader(shader){
   	//set call backs;
 	//glfwSetCursorPosCallback(scene.window, [](GLFWWindow *window, float x, float y){});
@@ -44,7 +44,7 @@ void ParticleSystem<ParticleType>::createVBO(){
 
 }
 
-
+/*
 template <typename ParticleType>
 void ParticleSystem<ParticleType>::setVAO() const{
 	glEnableVertexAttribArray(0);
@@ -54,7 +54,9 @@ void ParticleSystem<ParticleType>::setVAO() const{
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(ParticleType), (void*)(sizeof(vec2)*2));
 }
-
+*/
+template <typename ParticleType>
+void ParticleSystem<ParticleType>::setVAO() const{}
 
 template <typename ParticleType>
 void ParticleSystem<ParticleType>::initCuda(){

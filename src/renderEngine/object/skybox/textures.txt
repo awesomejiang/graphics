@@ -1,0 +1,7 @@
+textureCube skybox
+right.png
+left.png
+top.png
+bottom.png
+back.jpg
+front.jpg

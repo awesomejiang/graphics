@@ -1,0 +1,2 @@
+textureDiffuse
+wood.png

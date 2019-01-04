@@ -13,7 +13,7 @@ Texture::Texture(std::string const &path, std::string const &type, std::string c
     glGenTextures(1, &ID);
 
     //TODO: some texture has to be flipped./some texture are not well aligned. How to determine?
-    stbi_set_flip_vertically_on_load(true);
+    //stbi_set_flip_vertically_on_load(true);
     //glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     int width, height, nrComponents;
@@ -43,7 +43,7 @@ Texture::Texture(std::string const &path, std::string const &type, std::string c
     	throw std::runtime_error("Texture failed to load at path: " + path);
     }
     //reset it back to default
-    stbi_set_flip_vertically_on_load(false);
+    //stbi_set_flip_vertically_on_load(false);
 }
 
 //cube texture

@@ -45,7 +45,7 @@ std::vector<Texture> const &textures)
 }
 
 
-void Mesh::draw(Shader const &shader) const{
+void Mesh::draw(Shader const &shader, GLenum const &mode) const{
 	unsigned int diffIdx = 1, specIdx = 1, normalIdx = 1, heightIdx = 1;
 	for(auto i=0; i<textures.size(); ++i){
 		glActiveTexture(GL_TEXTURE0 + i);
@@ -74,11 +74,14 @@ void Mesh::draw(Shader const &shader) const{
 			shader.setUniform(textures[i].name, i);
 			glBindTexture(GL_TEXTURE_CUBE_MAP, ID);
 		}
+		else{
+			throw std::runtime_error("error: unrecognized texture type.");
+		}
 	}
 
 	//draw
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, pts, GL_UNSIGNED_INT, 0);
+	glDrawElements(mode, pts, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(0);
 
 	//set everything to default

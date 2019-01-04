@@ -1,24 +1,41 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-
-#include <stdexcept>
 #include <iostream>
+#include <fstream>
 #include <vector>
+#include <sstream>
 #include <string>
-#include <cmath>
+#include <stdexcept>
+
+#include "camera.h"
+#include "window.h"
+#include "shader.h"
+#include "mesh.h"
+#include "model.h"
+#include "gbuffer.h"
 
 class Scene{
 public:
-	Scene(unsigned int = 800, unsigned int = 600, std::string = "scene");
+	Scene(int width, int height);
+	void loadModel(std::string const &dir);
+	void loadMesh(std::string const &dir);
+	void loadSkybox(std::string const &dir);
+	void loadLight(std::string const &dir);
 
-	void processInput() const;
+private:
+	Shader gbufferShader, skyboxShader;
+	Gbuffer gbuffer, gbufferBlend;
 
-	unsigned int width, height;
-	GLFWwindow *window;
+	std::vector<Model> models;
+	std::vector<Mesh> meshs;
+	Mesh skybox;
+
+	std::vector<glm::vec3> directionals, points, spots;
+
+	std::vector<Vertex> readVertices(std::string const &file);
+	std::vector<unsigned int> readIndices(std::string const &file);
+	std::vector<Texture> readTextures(std::string const &file);
 };
-
 
 #endif
