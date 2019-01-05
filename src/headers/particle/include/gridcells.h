@@ -5,7 +5,7 @@
 
 #include "utility.h"
 #include "vec_float.h"
-#include "deviceStructs.h"
+#include "structs.h"
 
 class GridCells{
 public:
@@ -13,7 +13,7 @@ public:
 	~GridCells();
 
 	void clear();
-	void insertParticle(DeviceParticle const *p, dim3 g, dim3 b, int num);
+	void insertParticle(DeviceParticleArray const &dpa, ParticleParams params, dim3 g, dim3 b);
 
 	DeviceGridCell *getCells() const;
 
@@ -28,7 +28,7 @@ private:
 //cuda kernels
 //__GLOBAL__ void initGridCells(DeviceGridCell *cells, int num);
 __GLOBAL__ void clearGridCells(DeviceGridCell *cells, int num);
-__GLOBAL__ void updateGridCells(DeviceGridCell *cells, DeviceParticle const *p, int pNum, int cellDim);
+__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, int cellDim);
 //__GLOBAL__ void destroyGridCells(DeviceGridCell *cells, int cellNum);
 
 #endif

@@ -11,18 +11,67 @@ Particle::Particle(ParticleParams const &pp): params{pp} {
 
 	//map dptr to VBO
 	size_t retSz;
-	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&particle, &retSz, resource) );
+	CUDA_SAFE_CALL( cudaGraphicsResourceGetMappedPointer((void**)&(particle.pos), &retSz, resource) );
 
 	deployGrid();
-
-	initParticle<<<grid, block>>>(params, particle);
-	CUDA_ERROR_CHECKER;
 }
 
 Particle::~Particle(){
 	//unmap resource
 	CUDA_SAFE_CALL( cudaGraphicsUnmapResources(1, &resource) );
 	CUDA_SAFE_CALL( cudaGraphicsUnregisterResource(resource) );
+
+	CUDA_SAFE_CALL( cudaFree(particle.vel) );
+	CUDA_SAFE_CALL( cudaFree(particle.force) );
+	CUDA_SAFE_CALL( cudaFree(particle.pressure) );
+}
+
+void Particle::setDeviceParticle(std::vector<vec3> const &p, std::vector<float> const &d){
+	int sz = p.size();
+	//alloc fields(except for pos field)
+	CUDA_SAFE_CALL( cudaMalloc((void**)&(particle.vel), sz*sizeof(vec3)) );
+	CUDA_SAFE_CALL( cudaMalloc((void**)&(particle.force), sz*sizeof(vec3)) );
+	CUDA_SAFE_CALL( cudaMalloc((void**)&(particle.pressure), sz*sizeof(float)) );
+	CUDA_SAFE_CALL( cudaMalloc((void**)&(particle.density), sz*sizeof(float)) );
+
+	//copy data from input
+	CUDA_SAFE_CALL( cudaMemcpy(particle.pos, p.data(), sz*sizeof(vec3), cudaMemcpyHostToDevice) );
+	CUDA_SAFE_CALL( cudaMemcpy(particle.density, d.data(), sz*sizeof(float), cudaMemcpyHostToDevice) );
+}
+
+
+void Particle::render(DeviceGridCell const *cells){
+	//update particles
+
+	updateDensityAndPressure<<<grid, block>>>(cells, params, particle);
+	CUDA_ERROR_CHECKER;
+	updateForce<<<grid, block>>>(cells, params, particle);
+	CUDA_ERROR_CHECKER;
+	updatePositionAndVelocity<<<grid, block>>>(cells, params, particle);
+	CUDA_ERROR_CHECKER;
+
+	glBindVertexArray(VAO);
+	glDrawArrays(GL_POINTS, 0, params.num);
+	glBindVertexArray(0);
+}
+
+void Particle::createGLBuffer(){
+	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+
+	//set VBO
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, params.num*sizeof(vec3), particle.pos, GL_STATIC_DRAW);
+
+	//set VAO
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vec3), (void*)(0));
+
+	//unbind
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void Particle::deployGrid(){
@@ -50,116 +99,97 @@ void Particle::deployGrid(){
 		throw std::runtime_error("No particles in screen.");
 }
 
-void Particle::createGLBuffer(){
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-
-	glBindVertexArray(VAO);
-
-	//set VBO
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, params.num*sizeof(DeviceParticle), particle, GL_STATIC_DRAW);
-
-	//set VAO
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(DeviceParticle), (void*)(0));
-
-	//unbind
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
-void Particle::render(DeviceGridCell const *cell){
-	//update particles
-	updateParticle<<<grid, block>>>(cell, params, particle);
-	CUDA_ERROR_CHECKER;
-
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_POINTS, 0, params.num);
-	glBindVertexArray(0);
-}
-
-__GLOBAL__ void initParticle(ParticleParams params, DeviceParticle *p){
+/* update kernels */
+__GLOBAL__ void updateDensityAndPressure(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa){
 	auto idx = getIdx();
 	if(idx >= params.num)
 		return ;
+	auto pos = dpa.pos[idx];
 
-	auto &pr = p[idx];
-	pr.pos[0] = -1.0f + 0.02f * (idx/1000);
-	pr.pos[1] = 0.02f * (idx%1000)/100;
-	pr.pos[2] = -1.0f + 0.02f * (idx%100);
+	int cellDim = 2.0f/params.h;
+	int x = (pos[0]+1.0f)/params.h;
+	int y = (pos[1]+1.0f)/params.h;
+	int z = (pos[2]+1.0f)/params.h;
 
-	pr.vel = {0.0f, 0.0f, 0.0f};
-	pr.density = 1.0f;
-	pr.pressure = 1.0f;
-}
-
-__GLOBAL__ void updateParticle(DeviceGridCell const *cell, ParticleParams params, DeviceParticle *p){
-	auto idx = getIdx();
-	if(idx >= params.num)
-		return ;
-
-	auto &pr = p[idx];
-
-	auto cellDim = static_cast<int>(1/params.h);
-
-	float d = 0.0f;
+//if(idx==35929) printf("den before: %f\n", dp[idx].density);
 	//sum all neighbors for density
-	int x = (pr.pos[0]+1.0f)/2*cellDim;
-	int y = (pr.pos[1]+1.0f)/2*cellDim;
-	int z = (pr.pos[2]+1.0f)/2*cellDim;
-//if(idx==35929) printf("dim: %d %d %d\n", x, y, z);
-//if(idx==35929) printf("num: %d\n", cell[x*100+y*10+z].num);
+	float d = 0.0f;
 	for(auto i=-1; i<2; ++i){
 		for(auto j=-1; j<2; ++j){
 			for(auto k=-1; k<2; ++k){
 				if(x+i >=0 && x+i<cellDim && y+j >=0 && y+j<cellDim && z+k >=0 && z+k<cellDim){
-					auto dc = cell[(x+i)*cellDim*cellDim + (y+j)*cellDim + (z+k)];
+					auto dc = cells[(x+i)*cellDim*cellDim + (y+j)*cellDim + (z+k)];
+//if(idx==35929 && !i && !j && !k) printf("neighbor: %d\n", dc.num);
 					for(int v=0; v<dc.num; ++v)
-						d += weight(pr.pos, dc.pos[v], params.h);
+						d += weight(pos, dpa.pos[dc.index[v]], params.h);
 				}
 			}
 		}
 	}
-	pr.density = params.mass * d;
+	dpa.density[idx] = d;
 //if(idx==35929) printf("den: %f\n", d);
 
-	//compute pressure based on density
-	pr.pressure = params.k*pr.density/params.gamma*(powf(pr.density/1.0f, params.gamma) - 1);
-//if(idx==35929) printf("p: %f\n", pr.pressure);
-//if(idx==35929) printf("pos: %f %f %f\n", pr.pos[0], pr.pos[1], pr.pos[2]);
+	//update pressure based on new density
+	dpa.pressure[idx] = params.k*d/params.gamma*(powf(d/1.0f, params.gamma) - 1);
+}
+
+
+__GLOBAL__ void updateForce(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa){
+	auto idx = getIdx();
+	if(idx >= params.num)
+		return ;
+	auto pos = dpa.pos[idx];
+
+	int cellDim = 2.0f/params.h;
+	int x = (pos[0]+1.0f)/params.h;
+	int y = (pos[1]+1.0f)/params.h;
+	int z = (pos[2]+1.0f)/params.h;
 
 	//compute external force
 	vec3 f;
+	float commonCoef = dpa.pressure[idx]/powf(dpa.density[idx], 2);
 	for(auto i=-1; i<2; ++i){
 		for(auto j=-1; j<2; ++j){
 			for(auto k=-1; k<2; ++k){
 				if(x+i >=0 && x+i<cellDim && y+j >=0 && y+j<cellDim && z+k >=0 && z+k<cellDim){
-					auto dc = cell[(x+i)*cellDim*cellDim + (y+j)*cellDim + (z+k)]; 
-					for(int v=0; v<dc.num; ++v)
-						f += (pr.pressure/(pr.density*pr.density))*divWeight(pr.pos, dc.pos[v], params.h);
+					auto dc = cells[(x+i)*cellDim*cellDim + (y+j)*cellDim + (z+k)]; 
+					for(int v=0; v<dc.num; ++v){
+						auto nbIdx = dc.index[v];
+						f += -(commonCoef + dpa.pressure[nbIdx]/powf(dpa.density[nbIdx], 2))
+							 * divWeight(pos, dpa.pos[nbIdx], params.h);
+					}
 				}
 			}
 		}
 	}
-	f *= -2*params.mass*params.mass;
-	f += {0.0f, -100.0f, 0.0f};
+
+	//add gravity here
+	dpa.force[idx] = f + vec3{0.0f, -10.0f, 0.0f};
 //if(idx==35929) printf("f: %f %f %f\n", f[0], f[1], f[2]);
+}
+
+
+__GLOBAL__ void updatePositionAndVelocity(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa){
+	auto idx = getIdx();
+	if(idx >= params.num)
+		return ;
+	auto &posRef = dpa.pos[idx];
+	auto &velRef = dpa.vel[idx];
 
 	//update pos and vel
-	pr.vel += f*params.dt/params.mass;
-	pr.pos += pr.vel*params.dt;
+	velRef += dpa.force[idx]*params.dt;
+	posRef += velRef*params.dt;
 
 	//when meet boundary
 	//bump back and get a vel decay
 	for(int i=0; i<3; ++i){
-		if(pr.pos[i] < -1.0f){
-			pr.pos[i] = -0.99f;
-			pr.vel[i] = abs(pr.vel[i])*0.5f;
+		if(posRef[i] <= -1.0f){
+			posRef[i] = -1.0f + params.h;
+			velRef[i] = abs(velRef[i])*0.5f;
 		}
-		else if(pr.pos[i] > 1.0f){
-			pr.pos[i] = 0.99f;
-			pr.vel[i] = -abs(pr.vel[i])*0.5f;
+		else if(posRef[i] >= 1.0f){
+			posRef[i] = 1.0f - params.h;
+			velRef[i] = -abs(velRef[i])*0.5f;
 		}
 	}
 }
@@ -169,7 +199,6 @@ __DEVICE__ float weight(vec3 const &src, vec3 const &dst, float const &h){
 	auto q = length(src-dst)/h;
 	return 0.25 * (q<2? powf(2-q, 3): 0.0f) - (q<1? powf(1-q, 3): 0.0);
 }
-
 
 
 __DEVICE__ vec3 divWeight(vec3 const &src, vec3 const &dst, float const &h){

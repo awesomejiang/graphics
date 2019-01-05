@@ -1,11 +1,12 @@
 #include "gridcells.h"
 
-GridCells::GridCells(float h): cellDim{static_cast<unsigned int>(1.0f/h)}, cellNum{cellDim*cellDim*cellDim} {
+GridCells::GridCells(float h): cellDim{static_cast<unsigned int>(2.0f/h)}, cellNum{cellDim*cellDim*cellDim} {
 	//alloc memory for neighbor grids
 	CUDA_SAFE_CALL( cudaMalloc((void**)&cells, sizeof(DeviceGridCell)*cellNum) );
 
 	//init cells
 	deployGrid();
+
 	//initGridCells<<<grid, block>>>(cells, cellNum);
 	//CUDA_ERROR_CHECKER;
 }
@@ -46,8 +47,8 @@ void GridCells::clear(){
 	CUDA_ERROR_CHECKER;
 }
 
-void GridCells::insertParticle(DeviceParticle const *p, dim3 g, dim3 b, int num){
-	updateGridCells<<<g, b>>>(cells, p, num, cellDim);
+void GridCells::insertParticle(DeviceParticleArray const &dpa, ParticleParams params, dim3 g, dim3 b){
+	updateGridCells<<<g, b>>>(cells, dpa.pos, params.num, 1.0f/params.h);
 	CUDA_ERROR_CHECKER;
 }
 
@@ -56,15 +57,15 @@ DeviceGridCell * GridCells::getCells() const{
 	return cells;
 }
 
-
+/*
 __GLOBAL__ void initGridCells(DeviceGridCell *cells, int cellNum){
 	auto idx = getIdx();
 	if(idx >= cellNum)
 		return ;
 
-	//cells[idx].pos = new vec3[MAX_PARTICLE];  
+	cells[idx].pos = new vec3[MAX_PARTICLE];  
 }
-
+*/
 
 __GLOBAL__ void clearGridCells(DeviceGridCell *cells, int cellNum){
 	auto idx = getIdx();
@@ -75,29 +76,31 @@ __GLOBAL__ void clearGridCells(DeviceGridCell *cells, int cellNum){
 }
 
 
-__GLOBAL__ void updateGridCells(DeviceGridCell *cells, DeviceParticle const *p, int pNum, int cellDim){
+__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, int cellDim){
 	auto idx = getIdx();
 	if(idx >= pNum)
 		return ;
 
-	auto pos = p[idx].pos;
-	int iX = (pos[0]+1.0f)/2*cellDim;
-	int iY = (pos[1]+1.0f)/2*cellDim;
-	int iZ = (pos[2]+1.0f)/2*cellDim;
-	auto iCell = iX*cellDim*cellDim + iY*cellDim + iZ;
+	auto pos = positions[idx];
+	int x = (pos[0]+1.0f)*cellDim;
+	int y = (pos[1]+1.0f)*cellDim;
+	int z = (pos[2]+1.0f)*cellDim;
 
-	auto n = atomicAdd(&(cells[iCell].num), 1);
+	auto &cell = cells[x*cellDim*cellDim + y*cellDim + z];
+
+	auto n = atomicAdd(&(cell.num), 1);
 	if(n < MAX_PARTICLE)
-		cells[iCell].pos[n] = pos;
+		cell.index[n] = idx;
 	else
-		atomicSub(&(cells[iCell].num), 1);
+		atomicSub(&(cell.num), 1);
 }
 
-
+/*
 __GLOBAL__ void destroyGridCells(DeviceGridCell *cells, int cellNum){
 	auto idx = getIdx();
 	if(idx >= cellNum)
 		return ;
 
-	//delete[] cells[idx].pos;
+	delete[] cells[idx].pos;
 }
+*/

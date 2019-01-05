@@ -3,35 +3,32 @@
 
 #include "vec_float.h"
 #include "utility.h"
-#include "deviceStructs.h"
+#include "structs.h"
 
 #include <cuda.h>
 #include <cuda_gl_interop.h>
 
-struct ParticleParams{
-	int num;
-	float mass, k, gamma, h, dt;
-	vec4 color;
-};
+#include <vector>
 
 class Particle{
 public:
 	Particle(ParticleParams const &pp);
 	~Particle();
 
-	void render(DeviceGridCell const *cell);
+	void setDeviceParticle(std::vector<vec3> const &p, std::vector<float> const &d);
+
+	void render(DeviceGridCell const *cells);
 
 	//get interfaces
-	int getNum() const{return params.num;}
-	vec4 getColor() const {return params.color;}
+	ParticleParams getParams() const{return params;}
 	dim3 getBlock() const {return block;}
 	dim3 getGrid() const {return grid;}
-	DeviceParticle *getParticle() const{return particle;}
+	DeviceParticleArray getParticle() const{return particle;}
 
 private:
 	//cuda params
 	ParticleParams params;
-	DeviceParticle *particle = nullptr;
+	DeviceParticleArray particle;
 	dim3 block, grid;
 	void deployGrid();
 
@@ -43,8 +40,9 @@ private:
 };
 
 //cuda kernels
-__GLOBAL__ void initParticle(ParticleParams params, DeviceParticle *p);
-__GLOBAL__ void updateParticle(DeviceGridCell const *cell, ParticleParams params, DeviceParticle *p);
+__GLOBAL__ void updateDensityAndPressure(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa);
+__GLOBAL__ void updateForce(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa);
+__GLOBAL__ void updatePositionAndVelocity(DeviceGridCell const *cells, ParticleParams params, DeviceParticleArray dpa);
 
 //helper functions for PCISPH algorithm
 __DEVICE__ float weight(vec3 const &src, vec3 const &dst, float const &h);

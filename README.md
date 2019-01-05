@@ -10,6 +10,7 @@ A particle-based simulation system for simulating VFX like fluid/light/shadow/sm
 4. obstacle support.
 5. model loading system(based on `renderEngine`)
 6. GUI(maybe use `IMGUI`?)
+7. Cmake system
 
 
 ## Deperacated works
