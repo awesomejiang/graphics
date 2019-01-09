@@ -41,7 +41,7 @@ Shader::Shader(std::string const &vshader, std::string const &fshader, std::stri
 		glGetShaderiv(shaderID, GL_COMPILE_STATUS, &success);
 		if(!success){
 			glGetShaderInfoLog(shaderID, 512, nullptr, infoLog);
-			throw std::runtime_error(infoLog);
+			throw std::runtime_error("error in " + shader[i] + ": \n" + std::string(infoLog));
 		}
 		//link it to program
 		glAttachShader(ID, shaderID);

@@ -28,7 +28,7 @@ private:
 //cuda kernels
 //__GLOBAL__ void initGridCells(DeviceGridCell *cells, int num);
 __GLOBAL__ void clearGridCells(DeviceGridCell *cells, int num);
-__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, int cellDim);
+__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, float h);
 //__GLOBAL__ void destroyGridCells(DeviceGridCell *cells, int cellNum);
 
 #endif

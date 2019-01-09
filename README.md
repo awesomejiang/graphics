@@ -1,19 +1,19 @@
 #Jiawei's Graphics Projects
 
-## Final Target
+## SPH fluid simulation
 A particle-based simulation system for simulating VFX like fluid/light/shadow/smoke...
 
 ## Todo List(keep updating)
-1. fluid Surface rendering.
-2. optimize the uniform grid cell implementation.
-3. shadow rendering.
+1. fluid Surface rendering.(SSF:wait to filtering the normal)
+2. optimize the uniform grid cell implementation.(hash)
+3. light/shadow effect.
 4. obstacle support.
 5. model loading system(based on `renderEngine`)
 6. GUI(maybe use `IMGUI`?)
 7. Cmake system
 
 
-## Deperacated works
+## Deperacated works(works but stop updating)
 ### hsSimulator
 HS Package-open Simulator aiming to practice OpenGL light VFX shader implementations. 
 

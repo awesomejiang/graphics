@@ -17,7 +17,8 @@ public:
 
 	void setDeviceParticle(std::vector<vec3> const &p, std::vector<float> const &d);
 
-	void render(DeviceGridCell const *cells);
+	void update(DeviceGridCell const *cells);
+	void render();
 
 	//get interfaces
 	ParticleParams getParams() const{return params;}

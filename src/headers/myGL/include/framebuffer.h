@@ -10,16 +10,17 @@
 
 class Framebuffer{
 public:
-	Framebuffer(int width, int height, int colors = 1);
+	Framebuffer(int width, int height, std::vector<GLint> texFormats = {GL_RGB});
 
 	void bind() const;
 	void unbind() const;
-	
-	std::vector<unsigned int> colorBuffers;
+	void clearBuffers() const;
+	unsigned int getTex(unsigned int const &idx = 0) const;
 	
 private:
 	int width, height;
 	unsigned int framebuffer, rbo;
+	std::vector<unsigned int> colorBuffers;
 };
 
 #endif

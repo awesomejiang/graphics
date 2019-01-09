@@ -36,11 +36,11 @@ Mesh createBox(){
 
 
 int main(int argc, char** argv){
-	Window window(800, 600);
+	Window window(800, 800);
 	Camera camera(window.window, {1, 0.5, 5});
 
-	FluidSystem fs(0.01f);
-	fs.addCube({-0.5f, 0.5f, 0.0f, 0.5f, -0.5f, 0.5f}, atof(argv[1]), atof(argv[2]), atof(argv[3]));
+	FluidSystem fs(0.02f);
+	fs.addCube({-0.5f, 0.5f, 0.0f, 0.5f, -0.5f, 0.5f}, atof(argv[1]), atof(argv[2]), atof(argv[3]), {1.0f, 0.0f, 0.0f, 1.0f});
 	//fs.addCube({-0.1f, 0.1f, 0.0f, 0.1f, -0.1f, 0.1f});
 
 	auto box = createBox();
@@ -52,7 +52,7 @@ int main(int argc, char** argv){
 
 	while(!glfwWindowShouldClose(window.window)){
 		ctr++;
-		if(ctr == 100){
+		if(ctr == 1000){
 			currTime = glfwGetTime();
 			printf("fps: %f\n", ctr/(currTime-prevTime));
 			ctr = 0;
@@ -67,10 +67,10 @@ int main(int argc, char** argv){
 		glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-		//draw particle
+		//draw particle(always at last due to post-processing)
 		fs.render(camera);
 
-		//box
+		//draw box
 		boxShader.use();
 		boxShader.setUniform("view", camera.getView());
 		boxShader.setUniform("projection", camera.getProjection());
@@ -81,5 +81,6 @@ int main(int argc, char** argv){
 		glfwPollEvents();
 //		if(ctr == 10) break;
 //		printf("%d\n", ctr);
+//		sleep(10);
 	}
 }

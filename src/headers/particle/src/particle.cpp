@@ -40,19 +40,23 @@ void Particle::setDeviceParticle(std::vector<vec3> const &p, std::vector<float> 
 }
 
 
-void Particle::render(DeviceGridCell const *cells){
+void Particle::update(DeviceGridCell const *cells){
 	//update particles
-
 	updateDensityAndPressure<<<grid, block>>>(cells, params, particle);
 	CUDA_ERROR_CHECKER;
 	updateForce<<<grid, block>>>(cells, params, particle);
 	CUDA_ERROR_CHECKER;
 	updatePositionAndVelocity<<<grid, block>>>(cells, params, particle);
 	CUDA_ERROR_CHECKER;
+}
 
+void Particle::render(){
+	//draw particles
+	glEnable(GL_PROGRAM_POINT_SIZE);
 	glBindVertexArray(VAO);
 	glDrawArrays(GL_POINTS, 0, params.num);
 	glBindVertexArray(0);
+	glDisable(GL_PROGRAM_POINT_SIZE);
 }
 
 void Particle::createGLBuffer(){
@@ -131,6 +135,8 @@ __GLOBAL__ void updateDensityAndPressure(DeviceGridCell const *cells, ParticlePa
 
 	//update pressure based on new density
 	dpa.pressure[idx] = params.k*d/params.gamma*(powf(d/1.0f, params.gamma) - 1);
+
+//if(idx==35929) printf("pressure: %f\n", dpa.pressure[idx]);
 }
 
 
@@ -164,7 +170,7 @@ __GLOBAL__ void updateForce(DeviceGridCell const *cells, ParticleParams params, 
 	}
 
 	//add gravity here
-	dpa.force[idx] = f + vec3{0.0f, -10.0f, 0.0f};
+	dpa.force[idx] = f + vec3{0.0f, -30.0f, 0.0f};
 //if(idx==35929) printf("f: %f %f %f\n", f[0], f[1], f[2]);
 }
 

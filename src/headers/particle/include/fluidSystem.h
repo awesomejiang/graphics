@@ -6,6 +6,8 @@
 
 #include "camera.h"
 #include "shader.h"
+#include "mesh.h"
+#include "framebuffer.h"
 
 #include "vec_float.h"
 #include "particle.h"
@@ -16,17 +18,24 @@
 
 class FluidSystem{
 public:
-	FluidSystem(float h): h{h}, gc{h} {}
+	FluidSystem(float h);
 
 	void addCube(Cube range, float k = 0.01f, float gamma = 1.1f, float dt = 0.01, vec4 color = {1.0f, 1.0f, 1.0f, 1.0f});
 	void render(Camera const &camera);
 private:
 	//graphics
-	Shader shader={"shaders/fluid.vs", "shaders/fluid.fs"};
 	float h;
-
+	Shader sShader={"shaders/surface.vs", "shaders/surface.fs"};
+	Shader tShader={"shaders/thickness.vs", "shaders/thickness.fs"};
+	Shader postShader={"shaders/post.vs", "shaders/post.fs"};
+	Framebuffer sFB = {800, 800, {GL_RGB32F}}, tFB = {800, 800, {GL_R32F}};
+	Mesh quad;
+	
+	void draw(Camera const &camera);
+	
 	//particles
 	std::vector<Particle> particles;
+	void update();
 
 	//uniform grid
 	GridCells gc;

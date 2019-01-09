@@ -85,6 +85,13 @@ glm::mat4 Camera::getProjection() const{
 	return projection;
 }
 
+glm::mat4 Camera::getVP() const{
+	return projection * view;
+}
+glm::mat4 Camera::getVPInverse() const{
+	return glm::inverse(projection * view);
+}
+
 glm::vec3 Camera::getFront() const{
 	return front;
 }

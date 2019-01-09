@@ -48,7 +48,7 @@ void GridCells::clear(){
 }
 
 void GridCells::insertParticle(DeviceParticleArray const &dpa, ParticleParams params, dim3 g, dim3 b){
-	updateGridCells<<<g, b>>>(cells, dpa.pos, params.num, 1.0f/params.h);
+	updateGridCells<<<g, b>>>(cells, dpa.pos, params.num, params.h);
 	CUDA_ERROR_CHECKER;
 }
 
@@ -76,16 +76,17 @@ __GLOBAL__ void clearGridCells(DeviceGridCell *cells, int cellNum){
 }
 
 
-__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, int cellDim){
+__GLOBAL__ void updateGridCells(DeviceGridCell *cells, vec3 *positions, int pNum, float h){
 	auto idx = getIdx();
 	if(idx >= pNum)
 		return ;
 
 	auto pos = positions[idx];
-	int x = (pos[0]+1.0f)*cellDim;
-	int y = (pos[1]+1.0f)*cellDim;
-	int z = (pos[2]+1.0f)*cellDim;
+	int x = (pos[0]+1.0f)/h;
+	int y = (pos[1]+1.0f)/h;
+	int z = (pos[2]+1.0f)/h;
 
+	int cellDim = 2.0f/h;
 	auto &cell = cells[x*cellDim*cellDim + y*cellDim + z];
 
 	auto n = atomicAdd(&(cell.num), 1);

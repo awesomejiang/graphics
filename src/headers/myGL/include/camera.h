@@ -32,6 +32,8 @@ public:
 	void update();
 	glm::mat4 getView() const;
 	glm::mat4 getProjection() const;
+	glm::mat4 getVP() const;
+	glm::mat4 getVPInverse() const;
 	glm::vec3 getFront() const;
 	glm::vec3 getPos() const;
 

@@ -1,6 +1,28 @@
 #include "fluidSystem.h"
 
 
+FluidSystem::FluidSystem(float h): h{h}, gc{h} {
+  //create lamp by hand
+  std::vector<Vertex> vertices = {
+    // positions          // normals           // texture coords
+    {{-1.0f,  1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{-1.0f, -1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {0.0f, 0.0f}},
+    {{ 1.0f, -1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f}},
+    {{-1.0f,  1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {0.0f, 1.0f}},
+    {{ 1.0f, -1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f}},
+    {{ 1.0f,  1.0f,  0.0f}, {0.0f,  0.0f, 1.0f}, {1.0f, 1.0f}}
+  };
+  std::vector<unsigned int> indices(6);
+  std::iota(indices.begin(), indices.end(), 0);
+
+  quad = Mesh(vertices,
+  			  indices,
+  			  {Texture(sFB.getTex(), "texture2D", "surface"),
+  			   Texture(tFB.getTex(), "texture2D", "thickness")
+  			  }
+  			 );
+}
+
 void FluidSystem::addCube(Cube range, float k, float gamma, float dt, vec4 color){
 	int sizeX = (range.upperX-range.lowerX)/h;
 	int sizeY = (range.upperY-range.lowerY)/h;
@@ -22,9 +44,7 @@ void FluidSystem::addCube(Cube range, float k, float gamma, float dt, vec4 color
 	printf("Add a cube consisted of %zu particles into system\n", pos.size());
 }
 
-
-void FluidSystem::render(Camera const &camera){
-	//
+void FluidSystem::update(){
 	//update cell
 	gc.clear();
 	for(auto &p: particles){
@@ -32,19 +52,54 @@ void FluidSystem::render(Camera const &camera){
 	}
 	auto cells = gc.getCells(); 
 
-	//update particles and draw
-	shader.use();
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-	shader.setUniform("projection", camera.getProjection());
-	shader.setUniform("view", camera.getView());
-
+	//update particles
 	for(auto &p: particles){
-		p.render(cells);
-		auto color = p.getParams().color;
-		shader.setUniform("color", color[0], color[1], color[2], color[3]);
+		p.update(cells);
 	}
+}
 
+void FluidSystem::draw(Camera const &camera){
+	//surface(position in camera coord)
+	sShader.use();
+	sShader.setUniform("VP", camera.getVP());
+	sShader.setUniform("pSize", h*2000.0f);
+	sShader.setUniform("camPos", camera.getPos());
+
+	sFB.bind();
+	sFB.clearBuffers();
+	glEnable(GL_DEPTH_TEST);
+	for(auto &p: particles){
+		p.render();
+	}
+	glDisable(GL_DEPTH_TEST);
+	sFB.unbind();
+
+	//thickness
+	tShader.use();
+	sShader.setUniform("VP", camera.getVP());
+	tShader.setUniform("pSize", h*2000.0f);
+
+	tFB.bind();
+	tFB.clearBuffers();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+	for(auto &p: particles){
+		p.render();
+	}
 	glDisable(GL_BLEND);
+	tFB.unbind();
+
+	//construct quad
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	postShader.use();
+	postShader.setUniform("VP", camera.getVP());
+	postShader.setUniform("camPos", camera.getPos());
+
+	quad.draw(postShader);
+}
+
+void FluidSystem::render(Camera const &camera){
+	update();
+	draw(camera);
 }
