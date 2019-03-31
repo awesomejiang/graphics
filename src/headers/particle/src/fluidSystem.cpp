@@ -23,24 +23,28 @@ FluidSystem::FluidSystem(float h): h{h}, gc{h} {
   			 );
 }
 
-void FluidSystem::addCube(Cube range, float k, float gamma, float dt, vec4 color){
+void FluidSystem::addCube(Cube range, float k, float gamma, float miu, float dt, vec4 color){
 	int sizeX = (range.upperX-range.lowerX)/h;
 	int sizeY = (range.upperY-range.lowerY)/h;
 	int sizeZ = (range.upperZ-range.lowerZ)/h;
 	int pNum = sizeX*sizeY*sizeZ;
-	particles.emplace_back(ParticleParams{pNum, k, gamma, h, dt, color});
+	particles.emplace_back(ParticleParams{pNum, k, gamma, miu, h, dt, color});
 
-	auto density = std::vector<float>(pNum, 2.141506f);	//cube neighbors: 6 1s, 12 rt(2)s, 8 rt(3)s
+	//put all particles in the center of cell
+	range.upperX += 0.5*h;
+	range.upperY += 0.5*h;
+	range.upperZ += 0.5*h;
+
 	auto pos = std::vector<vec3>(pNum);
 	for(int i=0; i<sizeX; ++i){
 		for(int j=0; j<sizeY; ++j){
 			for(int k=0; k<sizeZ; ++k){
-				pos[i*sizeY*sizeZ+j*sizeZ+k] = vec3{range.lowerX+i*h, range.lowerY+j*h, range.lowerZ+k*h};
+				pos[i*sizeY*sizeZ+j*sizeZ+k] = vec3{range.lowerX+i*h+0.5*h, range.lowerY+j*h+0.5*h, range.lowerZ+k*h+0.5*h};
 			}
 		}
 	}
 
-	particles.back().setDeviceParticle(pos, density);
+	particles.back().setDeviceParticle(pos);
 	printf("Add a cube consisted of %zu particles into system\n", pos.size());
 }
 
@@ -62,7 +66,7 @@ void FluidSystem::draw(Camera const &camera){
 	//surface(position in camera coord)
 	sShader.use();
 	sShader.setUniform("VP", camera.getVP());
-	sShader.setUniform("pSize", h*2000.0f);
+	sShader.setUniform("pSize", h*1000.0f);
 	sShader.setUniform("camPos", camera.getPos());
 
 	sFB.bind();
@@ -77,7 +81,7 @@ void FluidSystem::draw(Camera const &camera){
 	//thickness
 	tShader.use();
 	sShader.setUniform("VP", camera.getVP());
-	tShader.setUniform("pSize", h*2000.0f);
+	tShader.setUniform("pSize", h*1000.0f);
 
 	tFB.bind();
 	tFB.clearBuffers();

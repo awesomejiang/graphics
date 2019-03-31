@@ -10,12 +10,13 @@
 
 #include <vector>
 
+
 class Particle{
 public:
 	Particle(ParticleParams const &pp);
 	~Particle();
 
-	void setDeviceParticle(std::vector<vec3> const &p, std::vector<float> const &d);
+	void setDeviceParticle(std::vector<vec3> const &p);
 
 	void update(DeviceGridCell const *cells);
 	void render();
@@ -48,5 +49,14 @@ __GLOBAL__ void updatePositionAndVelocity(DeviceGridCell const *cells, ParticleP
 //helper functions for PCISPH algorithm
 __DEVICE__ float weight(vec3 const &src, vec3 const &dst, float const &h);
 __DEVICE__ vec3 divWeight(vec3 const &src, vec3 const &dst, float const &h);
+__DEVICE__ float lapacianWeight(vec3 const &src, vec3 const &dst, float const &h);
+
+__DEVICE__ float poly6Weight(vec3 const &src, vec3 const &dst, float const &h);
+__DEVICE__ vec3 poly6Grad(vec3 const &src, vec3 const &dst, float const &h);
+__DEVICE__ float poly6Lapacian(vec3 const &src, vec3 const &dst, float const &h);
+__DEVICE__ vec3 spikyGrad(vec3 const &src, vec3 const &dst, float const &h);
+__DEVICE__ float viscosityLapacian(vec3 const &src, vec3 const &dst, float const &h);
+
+
 
 #endif

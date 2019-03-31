@@ -36,12 +36,12 @@ Mesh createBox(){
 
 
 int main(int argc, char** argv){
-	Window window(800, 800);
+	Window window(800, 600);
 	Camera camera(window.window, {1, 0.5, 5});
 
-	FluidSystem fs(0.02f);
-	fs.addCube({-0.5f, 0.5f, 0.0f, 0.5f, -0.5f, 0.5f}, atof(argv[1]), atof(argv[2]), atof(argv[3]), {1.0f, 0.0f, 0.0f, 1.0f});
-	//fs.addCube({-0.1f, 0.1f, 0.0f, 0.1f, -0.1f, 0.1f});
+	FluidSystem fs(0.1f);
+	fs.addCube({-0.5f, 0.5f, 0.0f, 0.5f, -0.5f, 0.5f}, atof(argv[1]), atof(argv[2]), atof(argv[3]), atof(argv[4]), {1.0f, 0.0f, 0.0f, 1.0f});
+	// fs.addCube({-1.0f, 0.0f, -1.0f, 1.0f, -1.0f, 1.0f}, atof(argv[1]), atof(argv[2]), atof(argv[3]), atof(argv[4]), {1.0f, 0.0f, 0.0f, 1.0f});
 
 	auto box = createBox();
 	Shader boxShader = {"shaders/box.vs", "shaders/box.fs"};

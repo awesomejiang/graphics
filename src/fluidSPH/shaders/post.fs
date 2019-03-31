@@ -49,7 +49,8 @@ void main(){
 
 	//final color
 	if(p.z > 0.001){
-		fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		// fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+		fragColor = vec4(normal, 1.0);
 		fragColor.w = 1.0;
 	}
 

@@ -23,7 +23,7 @@ struct Cube{
 
 struct ParticleParams{
 	int num;
-	float k, gamma, h, dt;
+	float k, gamma, miu, h, dt;
 	vec4 color;
 };
 
